@@ -67,63 +67,36 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Build changelog from conventional commits
-        id: conventional_changelog
         run: |
           # Try to generate a conventional changelog if conventional-changelog-cli is available
           npx conventional-changelog -p angular -i CHANGELOG.md -s 2>/dev/null || true
           
           # Generate release notes
-          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
-          echo "# Release ${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "## What's Changed" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "${{ steps.changelog.outputs.changelog }}" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ github.event.inputs.version }}...${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          cat > release_body.md << EOF
+          # Release ${{ steps.version.outputs.version }}
+          
+          ## What's Changed
+          
+          ${{ steps.changelog.outputs.changelog }}
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ github.event.inputs.version }}...${{ steps.version.outputs.version }}
+          EOF
+          
+          echo "release_body=release_body.md" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          release_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
           body_path: release_body.md
           draft: false
           prerelease: ${{ steps.version.outputs.is_beta }}
-        # Note: This creates the release body inline
-
-      - name: Create Release with body
-        run: |
-          # Write release body to file
-          cat > release_body.md << 'EOF'
-          ${{ steps.conventional_changelog.outputs.release_notes }}
-          EOF
-          
-          # Use softprops/action-gh-release for more control
-          echo "Release notes prepared for ${{ steps.version.outputs.version }}"
-
-      - name: Upload artifacts
-        uses: actions/upload-release-asset@v1
+          files: |
+            ./dist/cli.js
+            ./install.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/cli.js
-          asset_name: mcp-bridge-cli
-          asset_content_type: application/javascript
-
-      - name: Upload installation script
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./install.sh
-          asset_name: install.sh
-          asset_content_type: application/x-sh
 
   notify:
     name: Notify
