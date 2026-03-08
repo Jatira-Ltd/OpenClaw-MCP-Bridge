@@ -19,29 +19,44 @@ function getLogLevel(): string {
   return process.env.LOG_LEVEL || 'info';
 }
 
-// Create logger instance
-export const logger = pino({
-  level: getLogLevel(),
-  transport: process.argv.includes('--verbose') || process.argv.includes('--debug')
-    ? {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'SYS:standard',
-          ignore: 'pid,hostname',
-        },
-      }
-    : undefined,
-  formatters: {
-    level: (label) => {
-      return { level: label };
+// Check if verbose/debug mode is enabled
+function isDebugOrVerbose(): boolean {
+  return process.argv.includes('--verbose') || process.argv.includes('--debug') || process.argv.includes('-v');
+}
+
+// Create logger options - always use pino.destination in non-TTY for debug/verbose
+function createLoggerOptions(): pino.LoggerOptions {
+  const options: pino.LoggerOptions = {
+    level: getLogLevel(),
+    formatters: {
+      level: (label: string) => {
+        return { level: label };
+      },
     },
-  },
-  timestamp: pino.stdTimeFunctions.isoTime,
-  base: {
-    service: 'mcp-bridge',
-  },
-});
+    timestamp: pino.stdTimeFunctions.isoTime,
+    base: {
+      service: 'mcp-bridge',
+    },
+  };
+
+  // In non-TTY mode with debug/verbose, ensure we write to stdout
+  if (!process.stdout.isTTY && isDebugOrVerbose()) {
+    // Use destination to stdout to ensure output in non-TTY
+    options.transport = {
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        translateTime: 'SYS:standard',
+        ignore: 'pid,hostname',
+      },
+    };
+  }
+
+  return options;
+}
+
+// Create logger instance
+export const logger = pino(createLoggerOptions());
 
 // Convenience methods for structured logging
 export const log = {
@@ -59,7 +74,6 @@ export const log = {
         { 
           err: dataOrError, 
           message: dataOrError.message,
-          // Don't expose stack traces to users
         },
         message
       );
@@ -97,5 +111,5 @@ export const log = {
 
 // Check if verbose/debug mode is enabled
 export function isVerbose(): boolean {
-  return process.argv.includes('--verbose') || process.argv.includes('--debug');
+  return process.argv.includes('--verbose') || process.argv.includes('--debug') || process.argv.includes('-v');
 }
