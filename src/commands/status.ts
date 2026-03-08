@@ -33,7 +33,7 @@ export async function statusCommand(jsonOutput = false): Promise<void> {
     for (const [name, server] of Object.entries(servers)) {
       let serverStatus: ServerStatus = {
         name,
-        status: server.enabled ? 'offline' : 'offline',
+        status: server.enabled ? 'online' : 'offline',
         toolsCount: server.tools.length,
         enabled: server.enabled,
         lastUsed: server.lastUsedAt,
