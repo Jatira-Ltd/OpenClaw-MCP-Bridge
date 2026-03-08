@@ -19,7 +19,7 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
   maxDelayMs: 10000,
   backoffMultiplier: 2,
   retryableErrors: () => true,
-  onRetry: undefined,
+  onRetry: () => {},
 };
 
 /**
