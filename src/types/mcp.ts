@@ -17,6 +17,7 @@ export interface MCPConfig {
 
 export interface OpenClawConfig {
   mcp?: MCPConfig;
+  [key: string]: unknown;
 }
 
 export interface MCPTool {
