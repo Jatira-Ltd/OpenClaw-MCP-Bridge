@@ -36,18 +36,31 @@ function validatePackageName(packageName: string): void {
 }
 
 /**
+ * Get the latest version of a package from npm
+ */
+async function getPackageVersion(packageName: string): Promise<string | null> {
+  try {
+    const { stdout } = await execAsync(`npm view ${packageName} version`, { timeout: 30000 });
+    return stdout.trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Install an MCP server package via npx
  */
-export async function installMCPServer(packageName: string): Promise<void> {
+export async function installMCPServer(packageName: string, force = false): Promise<void> {
   // Validate package name before use
   validatePackageName(packageName);
   
-  // Verify the package exists by running npx
-  const { stdout, stderr } = await execAsync(`npx -y ${packageName} --version`, {
-    timeout: 60000,
-  });
+  // Check if package exists
+  const version = await getPackageVersion(packageName);
+  if (!version) {
+    throw new Error(`Package '${packageName}' not found in npm registry`);
+  }
   
-  // Add to config
+  // Add/update config (force overwrites existing)
   addMCPServer(packageName, {
     installedAt: new Date().toISOString(),
     enabled: true,
@@ -56,7 +69,7 @@ export async function installMCPServer(packageName: string): Promise<void> {
     env: {},
   });
   
-  console.log(`Installed ${packageName}: ${stdout.trim()}`);
+  console.log(`${force ? 'Updated' : 'Installed'} ${packageName} v${version}`);
 }
 
 /**
