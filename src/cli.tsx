@@ -12,7 +12,7 @@ import { readMCPConfig, writeMCPConfig, listMCPServers, addMCPServer, removeMCPS
 import { createSession, listTools, callMCPTool, closeSession } from './lib/protocol.js';
 import type { MCPServer, MCPTool } from './types/mcp.js';
 
-// Check if we're in TTY mode
+// Check if we are in TTY mode
 const isTTY = process.stdin.isTTY;
 
 // Runtime server status interface (not extending MCPServer)
