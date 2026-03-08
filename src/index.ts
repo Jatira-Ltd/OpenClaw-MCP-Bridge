@@ -3,6 +3,7 @@
  * Entry point
  */
 
+import process from 'process';
 import { installCommand } from './commands/install.js';
 import { listCommand } from './commands/list.js';
 import { removeCommand } from './commands/remove.js';
@@ -14,7 +15,7 @@ import { discoverCommand } from './commands/discover.js';
 import { configEditCommand } from './commands/config-edit.js';
 import { updateCommand } from './commands/update.js';
 import { closeSession } from './lib/protocol.js';
-import { readMCPConfig } from './lib/config.js';
+import { getParsedArgs } from './lib/args.js';
 
 const PKG_VERSION = '1.0.0';
 
@@ -43,6 +44,8 @@ Configuration Commands:
 
 Options:
   -s, --server <name>  Specify MCP server to use (for call command)
+  --debug              Enable debug output
+  --verbose            Enable verbose (debug) output
   --version            Show version information
   --help               Show this help message
 
@@ -60,86 +63,6 @@ Examples:
   mcp config edit --server @notionhq/mcp-server --list
   mcp call read_file '{ "path": "/tmp/test.txt" }'
   `);
-}
-
-/**
- * Parse command line arguments with support for flags
- */
-function parseArgs(args: string[]): { 
-  command: string;
-  rest: string[];
-  server?: string;
-  options: Record<string, string | boolean>;
-} {
-  let command = args[0] || '';
-  const rest: string[] = [];
-  let server: string | undefined;
-  const options: Record<string, string | boolean> = {};
-
-  // Handle global flags first (before command)
-  let processedFlags = true;
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    
-    if (arg === '--version') {
-      options.version = true;
-    } else if (arg === '--help' || arg === '-h') {
-      options.help = true;
-    } else if (arg === '-s' || arg === '--server') {
-      if (i + 1 < args.length) {
-        server = args[i + 1];
-        i++;
-      }
-    } else if (arg.startsWith('--server=')) {
-      server = arg.split('=')[1];
-    } else {
-      // This is the command or a positional argument
-      processedFlags = false;
-      break;
-    }
-  }
-
-  // If we processed all args as flags, return early
-  if (processedFlags && args.length > 0) {
-    return { command: '', rest: [], server, options };
-  }
-
-  // Re-parse without global flags
-  const remainingArgs = processedFlags ? [] : args;
-  command = remainingArgs[0] || '';
-
-  for (let i = 1; i < remainingArgs.length; i++) {
-    const arg = remainingArgs[i];
-    
-    if (arg === '-s' || arg === '--server') {
-      if (i + 1 < remainingArgs.length) {
-        server = remainingArgs[i + 1];
-        i++;
-      }
-    } else if (arg.startsWith('--server=')) {
-      server = arg.split('=')[1];
-    } else if (arg === '--json') {
-      options.json = true;
-    } else if (arg.startsWith('--')) {
-      // Handle --key=value format
-      if (arg.includes('=')) {
-        const idx = arg.indexOf('=');
-        const key = arg.substring(2, idx);
-        const value = arg.substring(idx + 1);
-        options[key] = value;
-      } else {
-        // Boolean flags like --list
-        options[arg.substring(2)] = true;
-      }
-    } else if (arg.startsWith('-') && arg.length === 2) {
-      // Short flags
-      options[arg.substring(1)] = true;
-    } else {
-      rest.push(arg);
-    }
-  }
-
-  return { command, rest, server, options };
 }
 
 /**
@@ -161,8 +84,7 @@ function safeJsonParse(input: string): Record<string, unknown> {
 }
 
 export async function main() {
-  const args = process.argv.slice(2);
-  const { command, rest, server, options } = parseArgs(args);
+  const { command, rest, server, options } = getParsedArgs();
 
   // Handle global flags
   if (options.version || command === 'version') {

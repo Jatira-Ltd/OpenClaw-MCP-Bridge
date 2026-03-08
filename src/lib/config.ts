@@ -3,41 +3,128 @@
  */
 
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import type { MCPServer, MCPConfig } from '../types/mcp.js';
+import { validateMCPConfig, safeValidateMCPConfig } from './config-validator.js';
+import { log, isVerbose } from './logger.js';
+import { handleError } from './errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Config file location - separate from OpenClaw's config
-const CONFIG_PATH = path.join(process.env.HOME || '/Users/jagadeeshkumarchippada', '.openclaw', 'mcp-servers.json');
+const CONFIG_PATH = path.join(os.homedir(), '.openclaw', 'mcp-servers.json');
 
 /**
- * Read the MCP config file
+ * Check if verbose/debug mode is enabled
+ */
+function isDebugMode(): boolean {
+  return isVerbose();
+}
+
+/**
+ * Read the MCP config file with validation
  */
 export function readMCPConfig(): MCPConfig {
   try {
     if (!fs.existsSync(CONFIG_PATH)) {
+      log.info('No config file found, using defaults');
       return { version: '1.0', servers: {} };
     }
+    
     const content = fs.readFileSync(CONFIG_PATH, 'utf-8');
-    return JSON.parse(content);
+    const rawConfig = JSON.parse(content);
+    
+    // Validate config on load
+    const validation = validateMCPConfig(rawConfig);
+    
+    if (!validation.valid) {
+      log.warn('Config validation issues found', { 
+        errors: validation.errors.map(e => e.message),
+        warnings: validation.warnings.map(w => w.message),
+      });
+      
+      if (isDebugMode()) {
+        console.error('\n⚠️  Configuration warnings:');
+        for (const error of validation.errors) {
+          console.error(`   Error: ${error.message} (${error.path})`);
+        }
+        for (const warning of validation.warnings) {
+          console.error(`   Warning: ${warning.message} (${warning.path})`);
+        }
+        console.error('');
+      }
+      
+      // Try to use safe validation which returns defaults on failure
+      const safeResult = safeValidateMCPConfig(rawConfig);
+      if (!safeResult.isValid) {
+        log.error('Config is corrupt, resetting to defaults');
+        console.error('\n⚠️  Configuration file appears corrupt. Resetting to defaults.\n');
+        return { version: '1.0', servers: {} };
+      }
+      
+      return safeResult.config;
+    }
+    
+    // Log warnings even if valid
+    if (validation.warnings.length > 0 && isDebugMode()) {
+      console.error('\n⚠️  Configuration warnings:');
+      for (const warning of validation.warnings) {
+        console.error(`   Warning: ${warning.message} (${warning.path})`);
+      }
+      console.error('');
+    }
+    
+    return rawConfig;
   } catch (error) {
-    console.error('Failed to read MCP config:', error);
+    // Handle JSON parse errors (corrupt config file)
+    if (error instanceof SyntaxError) {
+      log.error('Config file has invalid JSON', { error: error.message });
+      console.error('\n⚠️  Configuration file contains invalid JSON.');
+      console.error('   The file may have been corrupted. Starting with empty config.\n');
+      return { version: '1.0', servers: {} };
+    }
+    
+    // Re-throw other errors
+    handleError(error, { exit: false });
     return { version: '1.0', servers: {} };
   }
 }
 
 /**
- * Write the MCP config file
+ * Write the MCP config file with validation
  */
 export function writeMCPConfig(mcpConfig: MCPConfig): void {
+  // Validate before writing
+  const validation = validateMCPConfig(mcpConfig);
+  
+  if (!validation.valid) {
+    log.warn('Attempted to write invalid config', { 
+      errors: validation.errors.map(e => e.message),
+    });
+    throw new Error(`Cannot write invalid config: ${validation.errors[0]?.message}`);
+  }
+  
   const dir = path.dirname(CONFIG_PATH);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
+  
+  // Backup existing config before overwriting
+  if (fs.existsSync(CONFIG_PATH)) {
+    const backupPath = `${CONFIG_PATH}.backup`;
+    try {
+      fs.copyFileSync(CONFIG_PATH, backupPath);
+      log.debug('Config backed up', { backupPath });
+    } catch (err) {
+      log.warn('Failed to backup config', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(mcpConfig, null, 2));
+  log.info('Config saved', { path: CONFIG_PATH, servers: Object.keys(mcpConfig.servers || {}).length });
 }
 
 /**
