@@ -67,6 +67,14 @@ export function validateMCPConfig(config: unknown): ValidationResult {
   try {
     const parsed = MCPConfigSchema.parse(config);
     
+    // Validate for empty servers
+    if (!parsed.servers || Object.keys(parsed.servers).length === 0) {
+      warnings.push({
+        path: '/servers',
+        message: 'No MCP servers configured. Run "mcp install <package>" to add servers.',
+      });
+    }
+    
     // Additional business logic validations
     for (const [serverName, server] of Object.entries(parsed.servers)) {
       // Warn if no tools discovered

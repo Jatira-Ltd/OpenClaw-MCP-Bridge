@@ -8,21 +8,32 @@ import process from 'process';
 // Log levels: trace, debug, info, warn, error, fatal
 // Default level is 'info'
 
-// Parse log level from environment or CLI argument
+// Parse log level directly from process.argv (to avoid circular deps)
 function getLogLevel(): string {
-  if (process.argv.includes('--verbose') || process.argv.includes('-v')) {
-    return 'debug';
-  }
   if (process.argv.includes('--debug')) {
     return 'trace';
   }
+  if (process.argv.includes('--verbose') || process.argv.includes('-v')) {
+    return 'debug';
+  }
   return process.env.LOG_LEVEL || 'info';
+}
+
+// Check if we should use pretty output
+function shouldUsePretty(): boolean {
+  // Always use pretty output if --verbose or --debug flags are provided
+  // (regardless of TTY status)
+  if (process.argv.includes('--verbose') || process.argv.includes('--debug') || process.argv.includes('-v')) {
+    return true;
+  }
+  // Fall back to TTY check for default pretty mode
+  return process.stdout.isTTY;
 }
 
 // Create logger instance
 export const logger = pino({
   level: getLogLevel(),
-  transport: process.argv.includes('--verbose') || process.argv.includes('--debug')
+  transport: shouldUsePretty()
     ? {
         target: 'pino-pretty',
         options: {
@@ -97,5 +108,10 @@ export const log = {
 
 // Check if verbose/debug mode is enabled
 export function isVerbose(): boolean {
-  return process.argv.includes('--verbose') || process.argv.includes('--debug');
+  return process.argv.includes('--verbose') || process.argv.includes('--debug') || process.argv.includes('-v');
+}
+
+// Check if debug mode (more verbose than verbose)
+export function isDebug(): boolean {
+  return process.argv.includes('--debug');
 }

@@ -3,6 +3,7 @@
  */
 
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import type { MCPServer, MCPConfig } from '../types/mcp.js';
@@ -14,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Config file location - separate from OpenClaw's config
-const CONFIG_PATH = path.join(process.env.HOME || '/Users/jagadeeshkumarchippada', '.openclaw', 'mcp-servers.json');
+const CONFIG_PATH = path.join(os.homedir(), '.openclaw', 'mcp-servers.json');
 
 /**
  * Check if verbose/debug mode is enabled
