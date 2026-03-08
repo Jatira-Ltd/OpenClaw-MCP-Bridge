@@ -48,6 +48,10 @@ export function parseArgs(args: string[] = process.argv.slice(2)): ParsedArgs {
       }
     } else if (arg.startsWith('--server=')) {
       server = arg.split('=')[1];
+    } else if (arg === '-j' || arg === '--json') {
+      options.json = true;
+    } else if (arg === '-y' || arg === '--yes') {
+      options.yes = true;
     } else {
       // This is the command or a positional argument
       processedFlags = false;
@@ -75,8 +79,10 @@ export function parseArgs(args: string[] = process.argv.slice(2)): ParsedArgs {
       }
     } else if (arg.startsWith('--server=')) {
       server = arg.split('=')[1];
-    } else if (arg === '--json') {
+    } else if (arg === '-j' || arg === '--json') {
       options.json = true;
+    } else if (arg === '-y' || arg === '--yes') {
+      options.yes = true;
     } else if (arg.startsWith('--')) {
       // Handle --key=value format
       if (arg.includes('=')) {

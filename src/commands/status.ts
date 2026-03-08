@@ -24,7 +24,11 @@ export async function statusCommand(jsonOutput = false): Promise<void> {
     
     if (Object.keys(servers).length === 0) {
       spinner.info('No MCP servers installed');
-      console.log('\nRun: mcp install <package> to install an MCP server');
+      if (jsonOutput) {
+        console.log(JSON.stringify({ servers: [], message: 'No MCP servers installed' }, null, 2));
+      } else {
+        console.log('\nRun: mcp install <package> to install an MCP server');
+      }
       return;
     }
     
@@ -59,7 +63,7 @@ export async function statusCommand(jsonOutput = false): Promise<void> {
     spinner.succeed();
     
     if (jsonOutput) {
-      console.log(JSON.stringify(statuses, null, 2));
+      console.log(JSON.stringify({ servers: statuses }, null, 2));
       return;
     }
     

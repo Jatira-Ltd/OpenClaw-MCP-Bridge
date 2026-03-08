@@ -44,17 +44,21 @@ Configuration Commands:
 
 Options:
   -s, --server <name>  Specify MCP server to use (for call command)
+  -j, --json           Output in JSON format (for machine parsing)
   --debug              Enable debug output
   --verbose            Enable verbose (debug) output
   --version            Show version information
   --help               Show this help message
+  -y, --yes            Skip confirmation prompts
 
 Examples:
   mcp install @notionhq/mcp-server
   mcp list
+  mcp list --json
   mcp status
+  mcp status --json
   mcp discover
-  mcp discover @notionhq/mcp-server
+  mcp discover --json
   mcp enable @notionhq/mcp-server
   mcp disable @notionhq/mcp-server
   mcp update
@@ -97,6 +101,9 @@ export async function main() {
     return;
   }
 
+  const jsonOutput = !!options.json || !!options.j;
+  const skipConfirm = !!options.yes || !!options.y;
+
   switch (command) {
     case 'install': {
       const packageName = rest[0];
@@ -109,7 +116,7 @@ export async function main() {
       break;
     }
     case 'list': {
-      await listCommand();
+      await listCommand(jsonOutput);
       break;
     }
     case 'remove': {
@@ -119,7 +126,7 @@ export async function main() {
         console.error('Usage: mcp remove <package>');
         process.exit(1);
       }
-      await removeCommand(packageName);
+      await removeCommand(packageName, skipConfirm);
       break;
     }
     case 'call': {
@@ -134,7 +141,7 @@ export async function main() {
       break;
     }
     case 'status': {
-      await statusCommand(!!options.json);
+      await statusCommand(jsonOutput);
       break;
     }
     case 'enable': {
@@ -154,17 +161,17 @@ export async function main() {
         console.error('Usage: mcp disable <package>');
         process.exit(1);
       }
-      await disableCommand(packageName);
+      await disableCommand(packageName, skipConfirm);
       break;
     }
     case 'discover': {
       const packageName = rest[0];
-      await discoverCommand(packageName, !!options.json);
+      await discoverCommand(packageName, jsonOutput);
       break;
     }
     case 'update': {
       const packageName = rest[0];
-      await updateCommand(packageName);
+      await updateCommand(packageName, skipConfirm);
       break;
     }
     case 'config': {
@@ -178,6 +185,7 @@ export async function main() {
           value: options.value as string | undefined,
           list: !!options.list,
           remove: options.remove as string | undefined,
+          json: jsonOutput,
         });
       } else {
         // Default to config edit with no args (shows help)
