@@ -89,7 +89,7 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
 			<Box>
 				<Text bold color={colors.accent}>  🪢 MCP Bridge — Help </Text>
 			</Box>
-			<Text color={colors.textMuted}>{'─'.repeat(60)}</Text>
+			<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
 			
 			<Box flexDirection="column" marginY={1}>
 				<Text bold color={colors.textPrimary}>  Navigation</Text>
@@ -108,7 +108,7 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
 				<Text color={colors.textSecondary}>  q         Quit MCP Bridge</Text>
 			</Box>
 			
-			<Text color={colors.textMuted}>{'─'.repeat(60)}</Text>
+			<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
 			
 			<Text color={colors.textMuted}>  MCP Bridge v0.1.0  •  TypeScript + Node.js + Ink</Text>
 		</Box>
@@ -128,11 +128,6 @@ function App() {
 	const [toolArgs, setToolArgs] = useState('{}');
 	const [focusedPanel, setFocusedPanel] = useState<0 | 1 | 2>(0); // 0=servers, 1=tools, 2=execute
 
-	// Load servers on mount
-	useEffect(() => {
-		loadServers();
-	}, []);
-
 	const loadServers = useCallback(() => {
 		const mcpConfig = readMCPConfig();
 		const serverList = mcpConfig.servers || {};
@@ -144,6 +139,11 @@ function App() {
 		}));
 		setServers(serverArray);
 	}, []);
+
+	// Load servers on mount
+	useEffect(() => {
+		loadServers();
+	}, [loadServers]);
 
 	// Add server
 	const handleAddServer = useCallback(async () => {
@@ -416,13 +416,13 @@ function App() {
 					<Text bold color={colors.textPrimary}> Servers </Text>
 					<Text color={colors.accent}>[+ Add] </Text>
 				</Box>
-				<Text color={colors.textMuted}>{'─'.repeat(60)}</Text>
+				<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
 				
 				{servers.length === 0 ? (
-					<Text color={colors.textMuted}>No servers configured. Press 'a' to add your first server.</Text>
+					<Text key="no-servers" color={colors.textMuted}>No servers configured. Press 'a' to add your first server.</Text>
 				) : (
 					servers.map((server, index) => (
-						<Box key={`server-${server.name}`} flexDirection="column">
+						<Box key={`server-${server.name}-${index}`} flexDirection="column">
 							<Box>
 								<Text color={server.status === 'connected' ? colors.success : 
 									server.status === 'connecting' ? colors.warning : 
@@ -462,13 +462,13 @@ function App() {
 					</Text>
 					{connectedServer && <Text color={colors.accent}>[🔄 Refresh]</Text>}
 				</Box>
-				<Text color={colors.textMuted}>{'─'.repeat(60)}</Text>
+				<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
 				
 				{!connectedServer ? (
-					<Text color={colors.textMuted}>Select a connected server to view available tools</Text>
+					<Text key="no-connected" color={colors.textMuted}>Select a connected server to view available tools</Text>
 				) : connectedServer.tools && connectedServer.tools.length > 0 ? (
 					connectedServer.tools.map((tool, index) => (
-						<Box key={`tool-${tool.name}`}>
+						<Box key={`tool-${tool.name}-${index}`}>
 							<Text color={index === selectedToolIndex && focusedPanel === 1 ? colors.accent : colors.textSecondary}>
 								{index === selectedToolIndex && focusedPanel === 1 ? '→ ' : '  '}
 							</Text>
@@ -488,7 +488,7 @@ function App() {
 					<Text bold color={colors.textPrimary}> Execute </Text>
 					<Text color={colors.textMuted}>[Clear]</Text>
 				</Box>
-				<Text color={colors.textMuted}>{'─'.repeat(60)}</Text>
+				<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
 				
 				<Box>
 					<Text color={colors.textSecondary}>Tool: </Text>
@@ -509,7 +509,7 @@ function App() {
 							<Text color={colors.accent}>[📋 Copy]</Text>
 						)}
 					</Box>
-					<Text color={colors.textMuted}>{'─'.repeat(60)}</Text>
+					<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
 					
 					{isExecuting ? (
 						<Text color={colors.warning}>◐ Executing...</Text>
@@ -518,7 +518,7 @@ function App() {
 					) : lastResult ? (
 						<Text color={colors.textPrimary}>{lastResult}</Text>
 					) : (
-						<Text color={colors.textMuted}>(No result yet)</Text>
+						<Text key="no-result" color={colors.textMuted}>(No result yet)</Text>
 					)}
 				</Box>
 			</Box>
