@@ -7,8 +7,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import {
-  readOpenClawConfig,
-  writeOpenClawConfig,
   readMCPConfig,
   writeMCPConfig,
   listMCPServers,
@@ -19,16 +17,16 @@ import {
   updateServerTools,
 } from '../lib/config.js';
 
-// Actual config path used by the module
-const CONFIG_PATH = path.join(process.env.HOME || '/Users/jagadeeshkumarchippada', '.openclaw', 'openclaw.json');
+// MCP config path - separate from OpenClaw's config
+const MCP_CONFIG_PATH = path.join(process.env.HOME || '/Users/jagadeeshkumarchippada', '.openclaw', 'mcp-servers.json');
 
 describe('Config Module', () => {
-  let originalConfig: { mcp?: unknown } | null = null;
+  let originalConfig: { version?: string; servers?: unknown } | null = null;
 
   beforeEach(() => {
     // Backup existing config if it exists
-    if (fs.existsSync(CONFIG_PATH)) {
-      originalConfig = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+    if (fs.existsSync(MCP_CONFIG_PATH)) {
+      originalConfig = JSON.parse(fs.readFileSync(MCP_CONFIG_PATH, 'utf-8'));
     } else {
       originalConfig = null;
     }
@@ -37,11 +35,11 @@ describe('Config Module', () => {
   afterEach(() => {
     // Restore original config
     if (originalConfig === null) {
-      if (fs.existsSync(CONFIG_PATH)) {
-        fs.unlinkSync(CONFIG_PATH);
+      if (fs.existsSync(MCP_CONFIG_PATH)) {
+        fs.unlinkSync(MCP_CONFIG_PATH);
       }
     } else {
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(originalConfig, null, 2));
+      fs.writeFileSync(MCP_CONFIG_PATH, JSON.stringify(originalConfig, null, 2));
     }
   });
 
@@ -181,29 +179,13 @@ describe('Config Module', () => {
 
     it('should return default MCP config when none exists', () => {
       // Clear config
-      if (fs.existsSync(CONFIG_PATH)) {
-        fs.unlinkSync(CONFIG_PATH);
+      if (fs.existsSync(MCP_CONFIG_PATH)) {
+        fs.unlinkSync(MCP_CONFIG_PATH);
       }
 
       const config = readMCPConfig();
       expect(config.version).toBe('1.0');
       expect(config.servers).toEqual({});
-    });
-
-    it('should read full OpenClaw config', () => {
-      const testConfig = { mcp: { version: '1.0', servers: {} } };
-      writeOpenClawConfig(testConfig);
-
-      const config = readOpenClawConfig();
-      expect(config).toEqual(testConfig);
-    });
-
-    it('should write full OpenClaw config', () => {
-      const testConfig = { mcp: { version: '1.0', servers: {} }, other: 'data' };
-      writeOpenClawConfig(testConfig);
-
-      const config = readOpenClawConfig();
-      expect(config.other).toBe('data');
     });
   });
 });
