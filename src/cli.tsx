@@ -12,13 +12,20 @@ import { readMCPConfig, writeMCPConfig, listMCPServers, addMCPServer, removeMCPS
 import { createSession, listTools, callMCPTool, closeSession } from './lib/protocol.js';
 import type { MCPServer, MCPTool } from './types/mcp.js';
 
-// Extend MCPServer type for runtime use
-interface ServerWithStatus extends MCPServer {
+// Check if we are in TTY mode
+const isTTY = process.stdin.isTTY;
+
+// Runtime server status interface (not extending MCPServer)
+interface ServerWithStatus {
 	name: string;
 	endpoint?: string;
 	status: 'disconnected' | 'connecting' | 'connected' | 'error';
 	error?: string;
-	tools?: MCPTool[];
+	tools: MCPTool[];
+	installedAt: string;
+	enabled: boolean;
+	config: Record<string, unknown>;
+	env: Record<string, string>;
 }
 
 // Color palette from spec
@@ -56,7 +63,7 @@ function getToolIcon(toolName: string): string {
 
 // Custom confirm prompt
 async function confirm(message: string): Promise<boolean> {
-	const { confirmed } = await enquirer.prompt({
+	const { confirmed } = await (enquirer as any).prompt({
 		type: 'confirm',
 		name: 'confirmed',
 		message,
@@ -67,7 +74,7 @@ async function confirm(message: string): Promise<boolean> {
 
 // Custom input prompt
 async function input(message: string, initial?: string): Promise<string> {
-	const { value } = await enquirer.prompt({
+	const { value } = await (enquirer as any).prompt({
 		type: 'input',
 		name: 'value',
 		message,
@@ -76,9 +83,34 @@ async function input(message: string, initial?: string): Promise<string> {
 	return value;
 }
 
+// Non-TTY message component
+function NonTTYMessage() {
+	return (
+		<Box flexDirection="column" padding={1}>
+			<Text bold color={colors.accent}>🪢 MCP Bridge - Non-Interactive Mode</Text>
+			<Text color={colors.textMuted}>{"─".repeat(60)}</Text>
+			<Text color={colors.textSecondary}>
+				The interactive CLI requires a terminal (TTY).
+			</Text>
+			<Text color={colors.textSecondary}>
+				Use the following commands instead:
+			</Text>
+			<Text color={colors.textMuted}>{"─".repeat(60)}</Text>
+			<Text color={colors.accent}>  mcp list          - List installed MCP servers</Text>
+			<Text color={colors.accent}>  mcp install &lt;pkg&gt; - Install an MCP server</Text>
+			<Text color={colors.accent}>  mcp remove &lt;pkg&gt;  - Remove an MCP server</Text>
+			<Text color={colors.accent}>  mcp call &lt;tool&gt;  - Call an MCP tool</Text>
+			<Text color={colors.textMuted}>{"─".repeat(60)}</Text>
+			<Text color={colors.textMuted}>
+				Or run with a terminal to use the interactive UI.
+			</Text>
+		</Box>
+	);
+}
+
 // Help Panel Component
 function HelpPanel({ onClose }: { onClose: () => void }) {
-	useInput((input) => {
+	useInput((input: string) => {
 		if (input === 'q' || input === '\u001b') { // q or escape
 			onClose();
 		}
@@ -89,7 +121,7 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
 			<Box>
 				<Text bold color={colors.accent}>  🪢 MCP Bridge — Help </Text>
 			</Box>
-			<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
+			<Text key="help-divider-1" color={colors.textMuted}>{"─".repeat(60)}</Text>
 			
 			<Box flexDirection="column" marginY={1}>
 				<Text bold color={colors.textPrimary}>  Navigation</Text>
@@ -108,7 +140,7 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
 				<Text color={colors.textSecondary}>  q         Quit MCP Bridge</Text>
 			</Box>
 			
-			<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
+			<Text key="help-divider-2" color={colors.textMuted}>{"─".repeat(60)}</Text>
 			
 			<Text color={colors.textMuted}>  MCP Bridge v0.1.0  •  TypeScript + Node.js + Ink</Text>
 		</Box>
@@ -304,9 +336,9 @@ function App() {
 	// Copy result to clipboard (using pbcopy)
 	const handleCopy = useCallback(() => {
 		if (!lastResult) return;
-		const { execSync } = require('child_process');
+		const { execFileSync } = require('child_process');
 		try {
-			execSync(`echo "${lastResult.replace(/"/g, '\\"')}" | pbcopy`);
+			execFileSync('pbcopy', { input: lastResult });
 			console.log(chalk.green('✓ Result copied to clipboard'));
 		} catch {
 			console.log(chalk.red('Failed to copy to clipboard'));
@@ -314,7 +346,7 @@ function App() {
 	}, [lastResult]);
 
 	// Keyboard input handler
-	useInput((input, key) => {
+	useInput((input: string, key: any) => {
 		if (showHelp) {
 			if (input === '?' || input === 'q' || key.escape) {
 				setShowHelp(false);
@@ -416,7 +448,7 @@ function App() {
 					<Text bold color={colors.textPrimary}> Servers </Text>
 					<Text color={colors.accent}>[+ Add] </Text>
 				</Box>
-				<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
+				<Text key="servers-divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
 				
 				{servers.length === 0 ? (
 					<Text key="no-servers" color={colors.textMuted}>No servers configured. Press 'a' to add your first server.</Text>
@@ -462,7 +494,7 @@ function App() {
 					</Text>
 					{connectedServer && <Text color={colors.accent}>[🔄 Refresh]</Text>}
 				</Box>
-				<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
+				<Text key="tools-divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
 				
 				{!connectedServer ? (
 					<Text key="no-connected" color={colors.textMuted}>Select a connected server to view available tools</Text>
@@ -488,7 +520,7 @@ function App() {
 					<Text bold color={colors.textPrimary}> Execute </Text>
 					<Text color={colors.textMuted}>[Clear]</Text>
 				</Box>
-				<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
+				<Text key="execute-header-divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
 				
 				<Box>
 					<Text color={colors.textSecondary}>Tool: </Text>
@@ -509,7 +541,7 @@ function App() {
 							<Text color={colors.accent}>[📋 Copy]</Text>
 						)}
 					</Box>
-					<Text key="divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
+					<Text key="execute-result-divider" color={colors.textMuted}>{"─".repeat(60)}</Text>
 					
 					{isExecuting ? (
 						<Text color={colors.warning}>◐ Executing...</Text>
@@ -533,5 +565,11 @@ function App() {
 	);
 }
 
-// Run the app
-render(<App />);
+// Run the app - check for TTY first
+if (!isTTY) {
+	// Non-TTY mode - show helpful message instead of interactive UI
+	render(<NonTTYMessage />);
+} else {
+	// TTY mode - run the interactive app
+	render(<App />);
+}
