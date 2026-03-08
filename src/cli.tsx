@@ -308,9 +308,9 @@ function App() {
 	// Copy result to clipboard (using pbcopy)
 	const handleCopy = useCallback(() => {
 		if (!lastResult) return;
-		const { execSync } = require('child_process');
+		const { execFileSync } = require('child_process');
 		try {
-			execSync(`echo "${lastResult.replace(/"/g, '\\"')}" | pbcopy`);
+			execFileSync('pbcopy', { input: lastResult });
 			console.log(chalk.green('✓ Result copied to clipboard'));
 		} catch {
 			console.log(chalk.red('Failed to copy to clipboard'));
