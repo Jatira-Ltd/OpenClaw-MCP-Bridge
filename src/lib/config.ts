@@ -1,60 +1,43 @@
 /**
- * Config module - Read/write MCP configuration in openclaw.json
+ * Config module - Read/write MCP configuration in mcp-servers.json
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import type { MCPServer, MCPConfig, OpenClawConfig } from '../types/mcp.js';
+import type { MCPServer, MCPConfig } from '../types/mcp.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Config file location
-const CONFIG_PATH = path.join(process.env.HOME || '/Users/jagadeeshkumarchippada', '.openclaw', 'openclaw.json');
+// Config file location - separate from OpenClaw's config
+const CONFIG_PATH = path.join(process.env.HOME || '/Users/jagadeeshkumarchippada', '.openclaw', 'mcp-servers.json');
 
 /**
- * Read the full OpenClaw config
+ * Read the MCP config file
  */
-export function readOpenClawConfig(): OpenClawConfig {
+export function readMCPConfig(): MCPConfig {
   try {
     if (!fs.existsSync(CONFIG_PATH)) {
-      return {};
+      return { version: '1.0', servers: {} };
     }
     const content = fs.readFileSync(CONFIG_PATH, 'utf-8');
     return JSON.parse(content);
   } catch (error) {
-    console.error('Failed to read config:', error);
-    return {};
+    console.error('Failed to read MCP config:', error);
+    return { version: '1.0', servers: {} };
   }
 }
 
 /**
- * Write the full OpenClaw config
+ * Write the MCP config file
  */
-export function writeOpenClawConfig(config: OpenClawConfig): void {
+export function writeMCPConfig(mcpConfig: MCPConfig): void {
   const dir = path.dirname(CONFIG_PATH);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-}
-
-/**
- * Get MCP config section
- */
-export function readMCPConfig(): MCPConfig {
-  const config = readOpenClawConfig();
-  return config.mcp || { version: '1.0', servers: {} };
-}
-
-/**
- * Write MCP config section
- */
-export function writeMCPConfig(mcpConfig: MCPConfig): void {
-  const config = readOpenClawConfig();
-  config.mcp = mcpConfig;
-  writeOpenClawConfig(config);
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(mcpConfig, null, 2));
 }
 
 /**

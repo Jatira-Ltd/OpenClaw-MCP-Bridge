@@ -11,24 +11,64 @@ interface PendingRequest {
   reject: (error: Error) => void;
 }
 
+// Known safe MCP servers - no fallback to npx for unknown packages
+const KNOWN_SERVERS: Record<string, { command: string; args: (config?: Record<string, unknown>) => string[]; cwd?: string }> = {
+  '@modelcontextprotocol/server-filesystem': {
+    command: 'node',
+    args: (cfg) => {
+      const basePath = path.join(process.cwd(), 'node_modules', '@modelcontextprotocol', 'server-filesystem', 'dist', 'index.js');
+      const validatedDirs = validateAllowedDirectories(cfg?.allowedDirectories);
+      return [basePath, ...validatedDirs];
+    },
+    cwd: path.join(process.cwd(), 'node_modules', '@modelcontextprotocol', 'server-filesystem'),
+  },
+};
+
+/**
+ * Validate and sanitize allowed directories to prevent path traversal
+ */
+function validateAllowedDirectories(directories: unknown): string[] {
+  if (!Array.isArray(directories)) {
+    // Default to home directory if not specified
+    return [process.env.HOME || process.cwd()];
+  }
+  
+  const validated: string[] = [];
+  const baseDirs = [process.cwd(), process.env.HOME || '/tmp'];
+  
+  for (const dir of directories) {
+    if (typeof dir !== 'string') continue;
+    
+    // Resolve the path to absolute
+    const absolutePath = path.isAbsolute(dir) ? dir : path.resolve(dir);
+    
+    // Check if path is within allowed base directories
+    const isAllowed = baseDirs.some(base => 
+      absolutePath.startsWith(base) || absolutePath === base
+    );
+    
+    // Also allow explicit subdirectories that don't escape
+    const normalized = path.normalize(dir);
+    if (normalized.includes('..')) {
+      console.warn(`Blocked path traversal attempt: ${dir}`);
+      continue;
+    }
+    
+    if (isAllowed || !dir.includes('..')) {
+      validated.push(absolutePath);
+    }
+  }
+  
+  // Return at least one valid directory
+  return validated.length > 0 ? validated : [process.env.HOME || process.cwd()];
+}
+
 /**
  * Get the command to run for a package with arguments
  */
 function getServerCommand(packageName: string, config?: Record<string, unknown>): { command: string; args: string[]; cwd?: string } {
-  const knownServers: Record<string, { command: string; args: (config?: Record<string, unknown>) => string[]; cwd?: string }> = {
-    '@modelcontextprotocol/server-filesystem': {
-      command: 'node',
-      args: (cfg) => {
-        const basePath = path.join(process.cwd(), 'node_modules', '@modelcontextprotocol', 'server-filesystem', 'dist', 'index.js');
-        const dirs = Array.isArray(cfg?.allowedDirectories) ? cfg.allowedDirectories : [process.env.HOME || process.cwd()];
-        return [basePath, ...dirs];
-      },
-      cwd: path.join(process.cwd(), 'node_modules', '@modelcontextprotocol', 'server-filesystem'),
-    },
-  };
-
-  if (knownServers[packageName]) {
-    const server = knownServers[packageName];
+  if (KNOWN_SERVERS[packageName]) {
+    const server = KNOWN_SERVERS[packageName];
     return {
       command: server.command,
       args: server.args(config),
@@ -36,7 +76,32 @@ function getServerCommand(packageName: string, config?: Record<string, unknown>)
     };
   }
 
-  return { command: 'npx', args: ['-y', packageName] };
+  // SECURITY FIX: Do NOT fall back to npx for unknown packages
+  throw new Error(`Unknown MCP server: ${packageName}. Only known servers are supported.`);
+}
+
+/**
+ * Filter environment variables to only pass necessary ones
+ */
+function getFilteredEnv(): NodeJS.ProcessEnv {
+  const allowedVars = [
+    'PATH',
+    'HOME',
+    'USER',
+    'TMPDIR',
+    'TMP',
+    'NODE_ENV',
+    'LANG',
+    'LC_ALL',
+  ];
+  
+  const filtered: NodeJS.ProcessEnv = {};
+  for (const key of allowedVars) {
+    if (process.env[key]) {
+      filtered[key] = process.env[key];
+    }
+  }
+  return filtered;
 }
 
 /**
@@ -44,16 +109,28 @@ function getServerCommand(packageName: string, config?: Record<string, unknown>)
  */
 export class MCPSession {
   private process: ChildProcess;
-  private packageName: string;
+  packageName: string;
   private config?: Record<string, unknown>;
   private requestId = 1;
   private pendingRequests: Map<number, PendingRequest> = new Map();
   public initialized = false;
   private ready = false;
+  private readyPromise: Promise<void>;
+  private readyResolve!: () => void;
+  private exitedPromise: Promise<void>;
+  private exitedResolve!: () => void;
 
   constructor(packageName: string, config?: Record<string, unknown>) {
     this.packageName = packageName;
     this.config = config;
+    
+    // Create promises for tracking state
+    this.readyPromise = new Promise((resolve) => {
+      this.readyResolve = resolve;
+    });
+    this.exitedPromise = new Promise((resolve) => {
+      this.exitedResolve = resolve;
+    });
     
     const { command, args, cwd } = getServerCommand(packageName, config);
     console.log(`Starting MCP server: ${command} ${args.join(' ')}`);
@@ -61,7 +138,19 @@ export class MCPSession {
     this.process = spawn(command, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd,
-      env: { ...process.env },
+      env: getFilteredEnv(),
+    });
+
+    // Handle process exit
+    this.process.on('exit', () => {
+      this.exitedResolve();
+      this.ready = false;
+    });
+
+    this.process.on('error', (err) => {
+      console.error('MCP process error:', err);
+      this.exitedResolve();
+      this.ready = false;
     });
 
     // Setup stdout handler
@@ -90,17 +179,33 @@ export class MCPSession {
 
     // Mark as ready after a short delay
     setTimeout(() => {
-      this.ready = true;
-      console.log('MCP process ready');
+      if (!this.process.killed && this.process.exitCode === null) {
+        this.ready = true;
+        this.readyResolve();
+        console.log('MCP process ready');
+      }
     }, 1500);
+  }
+
+  /**
+   * Wait for the process to be ready
+   */
+  async waitForReady(timeoutMs = 5000): Promise<void> {
+    const timeout = new Promise<void>((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout waiting for MCP server to be ready')), timeoutMs);
+    });
+    await Promise.race([this.readyPromise, timeout]);
   }
 
   /**
    * Send a JSON-RPC request
    */
   private async sendRequest(method: string, params: Record<string, unknown> = {}): Promise<unknown> {
-    if (!this.ready || this.process.killed) {
-      throw new Error('MCP server not ready');
+    // Wait for ready state
+    await this.waitForReady();
+    
+    if (this.process.killed || this.process.exitCode !== null) {
+      throw new Error('MCP server process is not running');
     }
 
     return new Promise((resolve, reject) => {
@@ -135,7 +240,7 @@ export class MCPSession {
     }
 
     // Wait for ready
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await this.waitForReady();
 
     const result = await this.sendRequest('initialize', {
       protocolVersion: '2024-11-05',
@@ -167,15 +272,38 @@ export class MCPSession {
   }
 
   /**
-   * Close the session
+   * Close the session and wait for process to exit
    */
-  close(): void {
-    if (this.process && !this.process.killed) {
-      this.process.kill();
+  async close(timeoutMs = 5000): Promise<void> {
+    // Reject all pending requests
+    for (const [id, { reject }] of this.pendingRequests) {
+      reject(new Error('Session closed'));
     }
     this.pendingRequests.clear();
+    
     this.initialized = false;
     this.ready = false;
+    
+    if (this.process && !this.process.killed && this.process.exitCode === null) {
+      this.process.kill('SIGTERM');
+      
+      // Wait for process to exit with timeout
+      const timeout = new Promise<void>((resolve) => {
+        setTimeout(() => {
+          // Force kill if still running
+          if (!this.process.killed && this.process.exitCode === null) {
+            try {
+              this.process.kill('SIGKILL');
+            } catch (e) {
+              // Ignore errors
+            }
+          }
+          resolve();
+        }, timeoutMs);
+      });
+      
+      await Promise.race([this.exitedPromise, timeout]);
+    }
   }
 }
 
@@ -188,7 +316,7 @@ let currentSession: MCPSession | null = null;
 export async function createSession(packageName: string, config?: Record<string, unknown>): Promise<MCPSession> {
   // Close existing session if any
   if (currentSession) {
-    currentSession.close();
+    await currentSession.close();
   }
 
   currentSession = new MCPSession(packageName, config);
@@ -206,9 +334,9 @@ export function getCurrentSession(): MCPSession | null {
 /**
  * Close current session
  */
-export function closeSession(): void {
+export async function closeSession(): Promise<void> {
   if (currentSession) {
-    currentSession.close();
+    await currentSession.close();
     currentSession = null;
   }
 }
