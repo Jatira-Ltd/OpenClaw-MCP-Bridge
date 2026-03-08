@@ -1,167 +1,251 @@
 /**
- * Protocol module - Handle MCP JSON-RPC protocol communication directly
+ * Protocol module - Simple MCP session manager
  */
 
 import { spawn, ChildProcess } from 'child_process';
-import { getMCPServer } from './config.js';
+import path from 'path';
 import type { MCPTool, MCPCapabilities } from '../types/mcp.js';
 
-let currentProcess: ChildProcess | null = null;
-let requestId = 1;
-let pendingRequests: Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }> = new Map();
+interface PendingRequest {
+  resolve: (value: unknown) => void;
+  reject: (error: Error) => void;
+}
 
 /**
- * Send a JSON-RPC request to the MCP server
+ * Get the command to run for a package with arguments
  */
-function sendRequest(method: string, params: Record<string, unknown> = {}): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    if (!currentProcess || !currentProcess.stdin) {
-      return reject(new Error('MCP server process not running'));
-    }
+function getServerCommand(packageName: string, config?: Record<string, unknown>): { command: string; args: string[]; cwd?: string } {
+  const knownServers: Record<string, { command: string; args: (config?: Record<string, unknown>) => string[]; cwd?: string }> = {
+    '@modelcontextprotocol/server-filesystem': {
+      command: 'node',
+      args: (cfg) => {
+        const basePath = path.join(process.cwd(), 'node_modules', '@modelcontextprotocol', 'server-filesystem', 'dist', 'index.js');
+        const dirs = Array.isArray(cfg?.allowedDirectories) ? cfg.allowedDirectories : [process.env.HOME || process.cwd()];
+        return [basePath, ...dirs];
+      },
+      cwd: path.join(process.cwd(), 'node_modules', '@modelcontextprotocol', 'server-filesystem'),
+    },
+  };
 
-    const id = requestId++;
-    pendingRequests.set(id, { resolve, reject });
+  if (knownServers[packageName]) {
+    const server = knownServers[packageName];
+    return {
+      command: server.command,
+      args: server.args(config),
+      cwd: server.cwd,
+    };
+  }
 
-    const request = JSON.stringify({
-      jsonrpc: '2.0',
-      id,
-      method,
-      params,
+  return { command: 'npx', args: ['-y', packageName] };
+}
+
+/**
+ * MCP Session - manages a single MCP server connection
+ */
+export class MCPSession {
+  private process: ChildProcess;
+  private packageName: string;
+  private config?: Record<string, unknown>;
+  private requestId = 1;
+  private pendingRequests: Map<number, PendingRequest> = new Map();
+  public initialized = false;
+  private ready = false;
+
+  constructor(packageName: string, config?: Record<string, unknown>) {
+    this.packageName = packageName;
+    this.config = config;
+    
+    const { command, args, cwd } = getServerCommand(packageName, config);
+    console.log(`Starting MCP server: ${command} ${args.join(' ')}`);
+    
+    this.process = spawn(command, args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      cwd,
+      env: { ...process.env },
     });
 
-    currentProcess.stdin.write(request + '\n');
-
-    // Timeout after 30 seconds
-    setTimeout(() => {
-      if (pendingRequests.has(id)) {
-        pendingRequests.delete(id);
-        reject(new Error('Request timeout'));
-      }
-    }, 30000);
-  });
-}
-
-/**
- * Spawn an MCP server process
- */
-export function spawnMCPServer(packageName: string): ChildProcess {
-  // Kill any existing process
-  if (currentProcess) {
-    killCurrentProcess();
-  }
-
-  const proc = spawn('npx', ['-y', packageName], {
-    stdio: ['pipe', 'pipe', 'pipe'],
-    env: { ...process.env },
-  });
-
-  currentProcess = proc;
-  requestId = 1;
-  pendingRequests = new Map();
-
-  proc.stdout?.on('data', (data: Buffer) => {
-    const lines = data.toString().split('\n').filter(line => line.trim());
-    
-    for (const line of lines) {
-      try {
-        const response = JSON.parse(line);
-        
-        if (response.id && pendingRequests.has(response.id)) {
-          const { resolve, reject } = pendingRequests.get(response.id)!;
-          pendingRequests.delete(response.id);
+    // Setup stdout handler
+    this.process.stdout?.on('data', (data: Buffer) => {
+      const lines = data.toString().split('\n').filter(line => line.trim());
+      
+      for (const line of lines) {
+        try {
+          const response = JSON.parse(line);
           
-          if (response.error) {
-            reject(new Error(response.error.message || 'MCP Error'));
-          } else {
-            resolve(response.result);
+          if (response.id && this.pendingRequests.has(response.id)) {
+            const { resolve, reject } = this.pendingRequests.get(response.id)!;
+            this.pendingRequests.delete(response.id);
+            
+            if (response.error) {
+              reject(new Error(response.error.message || 'MCP Error'));
+            } else {
+              resolve(response.result);
+            }
           }
+        } catch (e) {
+          // Ignore non-JSON
         }
-      } catch (e) {
-        // Ignore parse errors for non-JSON output
       }
+    });
+
+    // Mark as ready after a short delay
+    setTimeout(() => {
+      this.ready = true;
+      console.log('MCP process ready');
+    }, 1500);
+  }
+
+  /**
+   * Send a JSON-RPC request
+   */
+  private async sendRequest(method: string, params: Record<string, unknown> = {}): Promise<unknown> {
+    if (!this.ready || this.process.killed) {
+      throw new Error('MCP server not ready');
     }
-  });
 
-  proc.stderr?.on('data', (data: Buffer) => {
-    console.error('MCP stderr:', data.toString());
-  });
+    return new Promise((resolve, reject) => {
+      const id = this.requestId++;
+      this.pendingRequests.set(id, { resolve, reject });
 
-  proc.on('error', (error: Error) => {
-    console.error('MCP Server error:', error.message);
-  });
+      const request = JSON.stringify({
+        jsonrpc: '2.0',
+        id,
+        method,
+        params,
+      });
 
-  proc.on('exit', (code: number | null) => {
-    console.log(`MCP Server exited with code ${code}`);
-    currentProcess = null;
-    currentClient = null;
-  });
+      this.process.stdin?.write(request + '\n');
 
-  return proc;
-}
+      setTimeout(() => {
+        if (this.pendingRequests.has(id)) {
+          this.pendingRequests.delete(id);
+          reject(new Error('Request timeout'));
+        }
+      }, 30000);
+    });
+  }
 
-/**
- * Current client state tracker
- */
-let currentClient: { initialized: boolean } | null = null;
+  /**
+   * Initialize the MCP session
+   */
+  async initialize(): Promise<MCPCapabilities> {
+    if (this.initialized) {
+      console.log('Already initialized');
+      return {} as MCPCapabilities;
+    }
 
-/**
- * Kill the current MCP server process
- */
-export function killCurrentProcess(): void {
-  if (currentProcess) {
-    currentProcess.kill();
-    currentProcess = null;
-    currentClient = null;
-    pendingRequests.clear();
+    // Wait for ready
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    const result = await this.sendRequest('initialize', {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: {
+        name: 'openclaw-mcp-bridge',
+        version: '1.0.0',
+      },
+    }) as { capabilities: MCPCapabilities; serverInfo: { name: string; version: string } };
+
+    console.log('MCP initialized:', result.serverInfo.name, result.serverInfo.version);
+    this.initialized = true;
+    return result.capabilities;
+  }
+
+  /**
+   * List available tools
+   */
+  async listTools(): Promise<MCPTool[]> {
+    const result = await this.sendRequest('tools/list', {}) as { tools: MCPTool[] };
+    return result.tools || [];
+  }
+
+  /**
+   * Call a tool
+   */
+  async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+    return this.sendRequest('tools/call', { name, arguments: args });
+  }
+
+  /**
+   * Close the session
+   */
+  close(): void {
+    if (this.process && !this.process.killed) {
+      this.process.kill();
+    }
+    this.pendingRequests.clear();
+    this.initialized = false;
+    this.ready = false;
   }
 }
 
+// Module-level session for convenience
+let currentSession: MCPSession | null = null;
+
 /**
- * Initialize MCP server with handshake
+ * Create and initialize a new MCP session
  */
-export async function initializeMCP(packageName: string): Promise<MCPCapabilities> {
-  spawnMCPServer(packageName);
-  
-  // Wait a bit for the process to start
-  await new Promise(resolve => setTimeout(resolve, 1000));
+export async function createSession(packageName: string, config?: Record<string, unknown>): Promise<MCPSession> {
+  // Close existing session if any
+  if (currentSession) {
+    currentSession.close();
+  }
 
-  const result = await sendRequest('initialize', {
-    protocolVersion: '2024-11-05',
-    capabilities: {},
-    clientInfo: {
-      name: 'openclaw-mcp-bridge',
-      version: '1.0.0',
-    },
-  }) as { capabilities: MCPCapabilities; serverInfo: { name: string; version: string } };
-
-  currentClient = { initialized: true };
-
-  return result.capabilities;
+  currentSession = new MCPSession(packageName, config);
+  await currentSession.initialize();
+  return currentSession;
 }
 
 /**
- * List available tools from MCP server
+ * Get current session
  */
+export function getCurrentSession(): MCPSession | null {
+  return currentSession;
+}
+
+/**
+ * Close current session
+ */
+export function closeSession(): void {
+  if (currentSession) {
+    currentSession.close();
+    currentSession = null;
+  }
+}
+
+// Backward compatibility exports
+export function spawnMCPServer(packageName: string): ChildProcess {
+  const session = new MCPSession(packageName);
+  return session as unknown as ChildProcess;
+}
+
+export function killCurrentProcess(): void {
+  closeSession();
+}
+
+export async function initializeMCP(packageName: string, config?: Record<string, unknown>): Promise<MCPCapabilities> {
+  const session = await createSession(packageName, config);
+  return session.initialize();
+}
+
 export async function listTools(): Promise<MCPTool[]> {
-  const result = await sendRequest('tools/list', {}) as { tools: MCPTool[] };
-  return result.tools || [];
+  if (!currentSession) {
+    throw new Error('No active MCP session');
+  }
+  return currentSession.listTools();
 }
 
-/**
- * Call an MCP tool
- */
 export async function callMCPTool(toolName: string, args: Record<string, unknown>): Promise<unknown> {
-  const result = await sendRequest('tools/call', {
-    name: toolName,
-    arguments: args,
-  });
-
-  return result;
+  if (!currentSession) {
+    throw new Error('No active MCP session');
+  }
+  return currentSession.callTool(toolName, args);
 }
 
-/**
- * Get the current process
- */
 export function getCurrentProcess(): ChildProcess | null {
-  return currentProcess;
+  return currentSession ? (currentSession as unknown as ChildProcess) : null;
+}
+
+export function isInitialized(): boolean {
+  return currentSession?.initialized ?? false;
 }
