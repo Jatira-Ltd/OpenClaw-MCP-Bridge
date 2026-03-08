@@ -10,7 +10,50 @@ import chalk from 'chalk';
 import enquirer from 'enquirer';
 import { readMCPConfig, writeMCPConfig, listMCPServers, addMCPServer, removeMCPServer, getMCPServer } from './lib/config.js';
 import { createSession, listTools, callMCPTool, closeSession } from './lib/protocol.js';
+import { isVerbose } from './lib/logger.js';
+import { handleError } from './lib/errors.js';
 import type { MCPServer, MCPTool } from './types/mcp.js';
+
+// CLI flags - parse before anything else
+const CLI_VERSION = '1.0.0';
+const args = process.argv.slice(2);
+
+function showVersion() {
+	console.log(`MCP Bridge v${CLI_VERSION}`);
+	process.exit(0);
+}
+
+function showHelp() {
+	console.log(`
+🪢 MCP Bridge v${CLI_VERSION}
+
+Usage: mcp-bridge [options] [command]
+
+Options:
+  -v, --verbose    Enable verbose output
+  -d, --debug      Enable debug output (includes trace logs)
+  --version        Show version number
+  --help           Show this help message
+
+Commands:
+  (Interactive - run without flags for TUI)
+
+Examples:
+  mcp-bridge --verbose     Run with verbose logging
+  mcp-bridge --debug       Run with debug logging
+  mcp-bridge --version     Show version
+`);
+	process.exit(0);
+}
+
+// Handle CLI flags
+if (args.includes('--version') || args.includes('-V')) {
+	showVersion();
+}
+
+if (args.includes('--help') || args.includes('-h')) {
+	showHelp();
+}
 
 // Check if we are in TTY mode
 const isTTY = process.stdin.isTTY;
@@ -85,6 +128,8 @@ async function input(message: string, initial?: string): Promise<string> {
 
 // Non-TTY message component
 function NonTTYMessage() {
+	const verbose = isVerbose();
+	
 	return (
 		<Box flexDirection="column" padding={1}>
 			<Text bold color={colors.accent}>🪢 MCP Bridge - Non-Interactive Mode</Text>
@@ -96,11 +141,17 @@ function NonTTYMessage() {
 				Use the following commands instead:
 			</Text>
 			<Text color={colors.textMuted}>{"─".repeat(60)}</Text>
-			<Text color={colors.accent}>  mcp list          - List installed MCP servers</Text>
-			<Text color={colors.accent}>  mcp install &lt;pkg&gt; - Install an MCP server</Text>
-			<Text color={colors.accent}>  mcp remove &lt;pkg&gt;  - Remove an MCP server</Text>
-			<Text color={colors.accent}>  mcp call &lt;tool&gt;  - Call an MCP tool</Text>
+			<Text color={colors.accent}>  mcp-bridge list          - List installed MCP servers</Text>
+			<Text color={colors.accent}>  mcp-bridge install &lt;pkg&gt; - Install an MCP server</Text>
+			<Text color={colors.accent}>  mcp-bridge remove &lt;pkg&gt;  - Remove an MCP server</Text>
+			<Text color={colors.accent}>  mcp-bridge call &lt;tool&gt;  - Call an MCP tool</Text>
 			<Text color={colors.textMuted}>{"─".repeat(60)}</Text>
+			{verbose && (
+				<>
+					<Text color={colors.textMuted}>Verbose mode enabled</Text>
+					<Text color={colors.textMuted}>{"─".repeat(60)}</Text>
+				</>
+			)}
 			<Text color={colors.textMuted}>
 				Or run with a terminal to use the interactive UI.
 			</Text>
@@ -142,7 +193,7 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
 			
 			<Text key="help-divider-2" color={colors.textMuted}>{"─".repeat(60)}</Text>
 			
-			<Text color={colors.textMuted}>  MCP Bridge v0.1.0  •  TypeScript + Node.js + Ink</Text>
+			<Text color={colors.textMuted}>  MCP Bridge v{CLI_VERSION}  •  TypeScript + Node.js + Ink</Text>
 		</Box>
 	);
 }
@@ -438,7 +489,7 @@ function App() {
 			{/* Header */}
 			<Box borderStyle="bold" borderColor={colors.border} paddingX={1}>
 				<Text bold color={colors.accent}> 🪢 MCP Bridge </Text>
-				<Text color={colors.textMuted}> v0.1.0 </Text>
+				<Text color={colors.textMuted}> v{CLI_VERSION} </Text>
 				<Text color={colors.textMuted}> [?]help </Text>
 			</Box>
 
