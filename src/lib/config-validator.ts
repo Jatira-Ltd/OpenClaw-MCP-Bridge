@@ -196,3 +196,27 @@ export function safeValidateMCPConfig(config: unknown): {
     };
   }
 }
+
+/**
+ * Validate a tool name for safety
+ */
+export function validateToolName(toolName: string): void {
+  if (!toolName || typeof toolName !== 'string') {
+    throw new Error('Tool name is required');
+  }
+  
+  if (toolName.length === 0) {
+    throw new Error('Tool name cannot be empty');
+  }
+  
+  // Block dangerous patterns
+  const dangerous = ['&&', '||', ';', '|', '`', '$(', '>', '<', '\n', '\r', '(', ')', '{', '}'];
+  if (dangerous.some(d => toolName.includes(d))) {
+    throw new Error('Tool name contains invalid characters');
+  }
+  
+  // Block path traversal
+  if (toolName.includes('..') || toolName.includes('/') || toolName.includes('\\')) {
+    throw new Error('Tool name contains path traversal');
+  }
+}

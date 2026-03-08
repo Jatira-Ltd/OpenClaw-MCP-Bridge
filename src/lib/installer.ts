@@ -15,7 +15,7 @@ const PACKAGE_NAME_REGEX = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._
 /**
  * Validate package name to prevent command injection
  */
-function validatePackageName(packageName: string): void {
+export function validatePackageName(packageName: string): void {
   if (!packageName || typeof packageName !== 'string') {
     throw new Error('Package name is required');
   }
@@ -38,7 +38,7 @@ function validatePackageName(packageName: string): void {
 /**
  * Get the latest version of a package from npm
  */
-async function getPackageVersion(packageName: string): Promise<string | null> {
+export async function getPackageVersion(packageName: string): Promise<string | null> {
   try {
     const { stdout } = await execAsync(`npm view ${packageName} version`, { timeout: 30000 });
     return stdout.trim();
