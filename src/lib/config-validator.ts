@@ -11,15 +11,15 @@ export const MCPServerSchema = z.object({
   installedAt: z.string().datetime(),
   enabled: z.boolean(),
   tools: z.array(z.string()),
-  config: z.record(z.string(), z.unknown()),
-  env: z.record(z.string(), z.string()),
+  config: z.record(z.unknown()),
+  env: z.record(z.string()),
   lastUsedAt: z.string().datetime().optional(),
 });
 
 // MCP Config schema
 export const MCPConfigSchema = z.object({
   version: z.string(),
-  servers: z.record(z.string(), MCPServerSchema),
+  servers: z.record(MCPServerSchema),
 });
 
 // Config validation result
@@ -66,14 +66,6 @@ export function validateMCPConfig(config: unknown): ValidationResult {
   // Try to parse and validate
   try {
     const parsed = MCPConfigSchema.parse(config);
-    
-    // Validate for empty servers
-    if (!parsed.servers || Object.keys(parsed.servers).length === 0) {
-      warnings.push({
-        path: '/servers',
-        message: 'No MCP servers configured. Run "mcp install <package>" to add servers.',
-      });
-    }
     
     // Additional business logic validations
     for (const [serverName, server] of Object.entries(parsed.servers)) {

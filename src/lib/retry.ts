@@ -19,7 +19,7 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
   maxDelayMs: 10000,
   backoffMultiplier: 2,
   retryableErrors: () => true,
-  onRetry: () => {},
+  onRetry: undefined,
 };
 
 /**
@@ -58,7 +58,7 @@ export async function withRetry<T>(
 ): Promise<T> {
   const opts: Required<RetryOptions> = { ...DEFAULT_OPTIONS, ...options };
   
-  let lastError: Error | undefined = undefined;
+  let lastError: Error;
   
   for (let attempt = 0; attempt <= opts.maxRetries; attempt++) {
     try {
@@ -80,7 +80,7 @@ export async function withRetry<T>(
           maxRetries: opts.maxRetries,
           error: lastError.message 
         });
-        throw lastError || new Error('Operation failed');
+        throw lastError;
       }
       
       const delayMs = calculateDelay(attempt, opts);
@@ -102,7 +102,7 @@ export async function withRetry<T>(
   }
   
   // This should never be reached but TypeScript needs it
-  throw lastError || new Error('Operation failed');
+  throw lastError!;
 }
 
 /**
