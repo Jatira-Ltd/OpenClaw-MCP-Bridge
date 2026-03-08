@@ -11,6 +11,12 @@ interface PendingRequest {
   reject: (error: Error) => void;
 }
 
+export interface ServerHealth {
+  online: boolean;
+  latency?: number;
+  error?: string;
+}
+
 // Known safe MCP servers - no fallback to npx for unknown packages
 const KNOWN_SERVERS: Record<string, { command: string; args: (config?: Record<string, unknown>) => string[]; cwd?: string }> = {
   '@modelcontextprotocol/server-filesystem': {
@@ -338,6 +344,49 @@ export async function closeSession(): Promise<void> {
   if (currentSession) {
     await currentSession.close();
     currentSession = null;
+  }
+}
+
+/**
+ * Get health status for an MCP server
+ */
+export async function getServerHealth(packageName: string, config?: Record<string, unknown>): Promise<ServerHealth> {
+  const startTime = Date.now();
+  
+  try {
+    // Create a temporary session to check health
+    const session = new MCPSession(packageName, config);
+    
+    // Wait for process to start
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Server startup timeout')), 5000);
+      
+      // Check if process started successfully
+      session.waitForReady(3000).then(() => {
+        clearTimeout(timeout);
+        resolve();
+      }).catch((err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    });
+    
+    // Try to initialize
+    await session.initialize();
+    const latency = Date.now() - startTime;
+    
+    // Clean up
+    await session.close();
+    
+    return {
+      online: true,
+      latency,
+    };
+  } catch (error) {
+    return {
+      online: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }
 

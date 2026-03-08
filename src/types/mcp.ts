@@ -8,6 +8,7 @@ export interface MCPServer {
   tools: string[];
   config: Record<string, unknown>;
   env: Record<string, string>;
+  lastUsedAt?: string;
 }
 
 export interface MCPConfig {

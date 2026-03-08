@@ -114,3 +114,77 @@ export function updateServerTools(name: string, tools: string[]): void {
     writeMCPConfig(mcpConfig);
   }
 }
+
+/**
+ * Enable an MCP server
+ */
+export function enableMCPServer(name: string): void {
+  const mcpConfig = readMCPConfig();
+  
+  if (mcpConfig.servers && mcpConfig.servers[name]) {
+    mcpConfig.servers[name].enabled = true;
+    writeMCPConfig(mcpConfig);
+  } else {
+    throw new Error(`Server ${name} not found`);
+  }
+}
+
+/**
+ * Disable an MCP server
+ */
+export function disableMCPServer(name: string): void {
+  const mcpConfig = readMCPConfig();
+  
+  if (mcpConfig.servers && mcpConfig.servers[name]) {
+    mcpConfig.servers[name].enabled = false;
+    writeMCPConfig(mcpConfig);
+  } else {
+    throw new Error(`Server ${name} not found`);
+  }
+}
+
+/**
+ * Update last used timestamp
+ */
+export function updateLastUsed(name: string): void {
+  const mcpConfig = readMCPConfig();
+  
+  if (mcpConfig.servers && mcpConfig.servers[name]) {
+    mcpConfig.servers[name].lastUsedAt = new Date().toISOString();
+    writeMCPConfig(mcpConfig);
+  }
+}
+
+/**
+ * Update server configuration
+ */
+export function updateServerConfig(name: string, config: Record<string, unknown>): void {
+  const mcpConfig = readMCPConfig();
+  
+  if (mcpConfig.servers && mcpConfig.servers[name]) {
+    mcpConfig.servers[name].config = {
+      ...mcpConfig.servers[name].config,
+      ...config,
+    };
+    writeMCPConfig(mcpConfig);
+  } else {
+    throw new Error(`Server ${name} not found`);
+  }
+}
+
+/**
+ * Update server environment variables
+ */
+export function updateServerEnv(name: string, env: Record<string, string>): void {
+  const mcpConfig = readMCPConfig();
+  
+  if (mcpConfig.servers && mcpConfig.servers[name]) {
+    mcpConfig.servers[name].env = {
+      ...mcpConfig.servers[name].env,
+      ...env,
+    };
+    writeMCPConfig(mcpConfig);
+  } else {
+    throw new Error(`Server ${name} not found`);
+  }
+}
