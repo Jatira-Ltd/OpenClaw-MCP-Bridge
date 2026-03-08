@@ -13,7 +13,9 @@
     "build:all": "npm run build && npm run build:cli",
     "start": "node dist/index.js",
     "dev": "npm run build:all && node dist/cli.js",
-    "cli": "node dist/cli.js"
+    "cli": "node dist/cli.js",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "keywords": [
     "mcp",
@@ -37,7 +39,10 @@
     "@modelcontextprotocol/server-filesystem": "^2026.1.14",
     "@types/node": "^20.0.0",
     "@types/react": "^19.2.14",
+    "@vitest/coverage-v8": "^4.0.18",
     "esbuild": "^0.27.3",
-    "typescript": "^5.3.0"
+    "ink-testing-library": "^4.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.18"
   }
 }

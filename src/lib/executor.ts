@@ -2,7 +2,7 @@
  * Executor module - Execute MCP tools
  */
 
-import { initializeMCP, listTools, callMCPTool, killCurrentProcess } from './protocol.js';
+import { initializeMCP, listTools, callMCPTool, closeSession } from './protocol.js';
 import { getServerNames, getMCPServer, updateServerTools } from './config.js';
 import type { MCPTool } from '../types/mcp.js';
 
@@ -25,23 +25,25 @@ export async function callTool(
     serverPackage = serverNames[0];
   }
   
-  // Initialize the MCP connection
-  await initializeMCP(serverPackage);
-  
-  // Discover tools if not cached
-  const server = getMCPServer(serverPackage);
-  if (!server || server.tools.length === 0) {
-    const tools = await listTools();
-    updateServerTools(serverPackage, tools.map(t => t.name));
+  try {
+    // Initialize the MCP connection
+    await initializeMCP(serverPackage);
+    
+    // Discover tools if not cached
+    const server = getMCPServer(serverPackage);
+    if (!server || server.tools.length === 0) {
+      const tools = await listTools();
+      updateServerTools(serverPackage, tools.map(t => t.name));
+    }
+    
+    // Call the tool
+    const result = await callMCPTool(toolName, args);
+    
+    return result;
+  } finally {
+    // Cleanup - always close session
+    await closeSession();
   }
-  
-  // Call the tool
-  const result = await callMCPTool(toolName, args);
-  
-  // Cleanup
-  killCurrentProcess();
-  
-  return result;
 }
 
 /**
@@ -58,9 +60,12 @@ export async function discoverTools(packageName?: string): Promise<MCPTool[]> {
     serverPackage = serverNames[0];
   }
   
-  await initializeMCP(serverPackage);
-  const tools = await listTools();
-  killCurrentProcess();
-  
-  return tools;
+  try {
+    await initializeMCP(serverPackage);
+    const tools = await listTools();
+    return tools;
+  } finally {
+    // Cleanup - always close session
+    await closeSession();
+  }
 }
