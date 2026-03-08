@@ -46,6 +46,27 @@ Examples:
 	process.exit(0);
 }
 
+
+// Check for command arguments - if present, delegate to CLI and don't render TUI
+const commandArgs = args.filter(arg => 
+	!arg.startsWith('--') && 
+	!arg.startsWith('-') &&
+	arg !== '--version' &&
+	arg !== '-V' &&
+	arg !== '--help' &&
+	arg !== '-h' &&
+	arg !== '--verbose' &&
+	arg !== '-v' &&
+	arg !== '--debug' &&
+	arg !== '-d'
+);
+
+if (commandArgs.length > 0) {
+	const { main } = await import('./index.js');
+	await main();
+	process.exit(0);
+}
+
 // Handle CLI flags
 if (args.includes('--version') || args.includes('-V')) {
 	showVersion();

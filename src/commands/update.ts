@@ -6,8 +6,9 @@ import ora from 'ora';
 import chalk from 'chalk';
 import { listMCPServers } from '../lib/config.js';
 import { installCommand } from './install.js';
+import { confirmAction } from '../lib/ui.js';
 
-export async function updateCommand(packageName?: string): Promise<void> {
+export async function updateCommand(packageName?: string, skipConfirm = false): Promise<void> {
   const servers = listMCPServers();
   const serverNames = Object.keys(servers);
 
@@ -38,7 +39,19 @@ export async function updateCommand(packageName?: string): Promise<void> {
       process.exit(1);
     }
   } else {
-    // Update all servers
+    // Update all servers - confirm first
+    if (!skipConfirm) {
+      console.log(chalk.bold('\nUpdate All MCP Servers'));
+      const confirmed = await confirmAction(
+        `Update all ${serverNames.length} MCP servers?`,
+        `This will check and update each server to its latest version.`
+      );
+      if (!confirmed) {
+        console.log(chalk.gray('Operation cancelled'));
+        return;
+      }
+    }
+
     const spinner = ora('Updating all MCP servers...').start();
     
     let updated = 0;

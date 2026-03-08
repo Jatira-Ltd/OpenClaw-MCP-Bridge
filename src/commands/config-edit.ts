@@ -11,10 +11,11 @@ interface ConfigEditOptions {
   value?: string;
   list?: boolean;
   remove?: string;
+  json?: boolean;
 }
 
 export async function configEditCommand(options: ConfigEditOptions): Promise<void> {
-  const { server, key, value, list: listConfig, remove } = options;
+  const { server, key, value, list: listConfig, remove, json: jsonOutput } = options;
 
   // If no args, show help
   if (!server && !listConfig) {
@@ -24,26 +25,42 @@ export async function configEditCommand(options: ConfigEditOptions): Promise<voi
     console.log('  mcp config edit --server <name> --list                      List all config');
     console.log('  mcp config edit --server <name> --remove <key>              Remove a config key');
     console.log('  mcp config edit --list                                       List all servers');
+    console.log('\nOptions:');
+    console.log('  --json  Output in JSON format');
     return;
   }
 
   // List all servers if --list without --server
   if (listConfig && !server) {
     const mcpConfig = readMCPConfig();
+    
+    const serversList = Object.entries(mcpConfig.servers || {}).map(([name, srv]) => ({
+      name,
+      enabled: srv.enabled,
+      toolsCount: srv.tools.length,
+      configKeys: Object.keys(srv.config || {}),
+      envVars: Object.keys(srv.env || {}),
+    }));
+
+    if (jsonOutput) {
+      console.log(JSON.stringify({ servers: serversList }, null, 2));
+      return;
+    }
+
     console.log(chalk.bold('MCP Servers Configuration'));
     console.log('─'.repeat(50));
     
-    if (Object.keys(mcpConfig.servers || {}).length === 0) {
+    if (serversList.length === 0) {
       console.log(chalk.gray('No servers configured'));
       return;
     }
 
-    for (const [name, srv] of Object.entries(mcpConfig.servers || {})) {
-      console.log(chalk.cyan(`\n${name}:`));
+    for (const srv of serversList) {
+      console.log(chalk.cyan(`\n${srv.name}:`));
       console.log(`  enabled: ${srv.enabled}`);
-      console.log(`  tools: ${srv.tools.length}`);
-      console.log(`  config keys: ${Object.keys(srv.config || {}).join(', ') || '(none)'}`);
-      console.log(`  env vars: ${Object.keys(srv.env || {}).join(', ') || '(none)'}`);
+      console.log(`  tools: ${srv.toolsCount}`);
+      console.log(`  config keys: ${srv.configKeys.join(', ') || '(none)'}`);
+      console.log(`  env vars: ${srv.envVars.join(', ') || '(none)'}`);
     }
     return;
   }
@@ -65,6 +82,17 @@ export async function configEditCommand(options: ConfigEditOptions): Promise<voi
 
   // List config
   if (listConfig) {
+    const configData = {
+      server,
+      config: serverConfig.config || {},
+      env: serverConfig.env || {},
+    };
+
+    if (jsonOutput) {
+      console.log(JSON.stringify(configData, null, 2));
+      return;
+    }
+
     console.log(chalk.bold(`Configuration for ${server}:`));
     console.log('─'.repeat(50));
     
@@ -89,14 +117,22 @@ export async function configEditCommand(options: ConfigEditOptions): Promise<voi
 
   // Remove a key
   if (remove) {
+    let removed = false;
     if (serverConfig.config && serverConfig.config[remove] !== undefined) {
       delete serverConfig.config[remove];
-      writeMCPConfig(mcpConfig);
-      console.log(chalk.green(`✓ Removed config key '${remove}' from '${server}'`));
+      removed = true;
     } else if (serverConfig.env && serverConfig.env[remove] !== undefined) {
       delete serverConfig.env[remove];
+      removed = true;
+    }
+
+    if (removed) {
       writeMCPConfig(mcpConfig);
-      console.log(chalk.green(`✓ Removed env var '${remove}' from '${server}'`));
+      if (jsonOutput) {
+        console.log(JSON.stringify({ success: true, message: `Removed '${remove}' from '${server}'` }, null, 2));
+      } else {
+        console.log(chalk.green(`✓ Removed config key '${remove}' from '${server}'`));
+      }
     } else {
       console.error(`Error: Key '${remove}' not found in config or env`);
       process.exit(1);
@@ -125,5 +161,10 @@ export async function configEditCommand(options: ConfigEditOptions): Promise<voi
   serverConfig.config[key] = parsedValue;
   
   writeMCPConfig(mcpConfig);
-  console.log(chalk.green(`✓ Set ${key} = ${value} for '${server}'`));
+
+  if (jsonOutput) {
+    console.log(JSON.stringify({ success: true, server, key, value: parsedValue }, null, 2));
+  } else {
+    console.log(chalk.green(`✓ Set ${key} = ${value} for '${server}'`));
+  }
 }

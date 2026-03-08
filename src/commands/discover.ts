@@ -6,6 +6,7 @@ import ora from 'ora';
 import chalk from 'chalk';
 import { discoverTools, discoverAllTools } from '../lib/discover.js';
 import { listMCPServers } from '../lib/config.js';
+import { ProgressTracker } from '../lib/ui.js';
 
 export async function discoverCommand(packageName?: string, jsonOutput = false): Promise<void> {
   const spinner = ora();
@@ -49,10 +50,25 @@ export async function discoverCommand(packageName?: string, jsonOutput = false):
         }
       }
     } else {
-      // Discover tools from all servers
-      spinner.start('Discovering tools from all servers...');
-      const results = await discoverAllTools();
-      spinner.succeed('Discovery complete');
+      // Discover tools from all servers with progress tracking
+      const progress = new ProgressTracker(serverNames);
+      progress.start('Discovering tools from all servers...');
+
+      const results: Record<string, unknown[]> = {};
+      
+      for (let i = 0; i < serverNames.length; i++) {
+        const name = serverNames[i];
+        progress.next(`Discovering tools from ${name}...`);
+        try {
+          results[name] = await discoverTools(name);
+        } catch (error) {
+          results[name] = [];
+          console.error(chalk.red(`\nFailed to discover tools from ${name}:`), 
+            error instanceof Error ? error.message : error);
+        }
+      }
+
+      progress.complete('Discovery complete');
 
       if (jsonOutput) {
         console.log(JSON.stringify(results, null, 2));
@@ -72,7 +88,7 @@ export async function discoverCommand(packageName?: string, jsonOutput = false):
           console.log(chalk.gray('  No tools available'));
         } else {
           for (const tool of tools.slice(0, 5)) {
-            console.log(chalk.white(`  - ${tool.name}`));
+            console.log(chalk.white(`  - ${(tool as { name: string }).name}`));
           }
           if (tools.length > 5) {
             console.log(chalk.gray(`  ... and ${tools.length - 5} more`));

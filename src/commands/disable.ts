@@ -4,8 +4,9 @@
 
 import chalk from 'chalk';
 import { disableMCPServer, getMCPServer } from '../lib/config.js';
+import { confirmAction } from '../lib/ui.js';
 
-export async function disableCommand(packageName: string): Promise<void> {
+export async function disableCommand(packageName: string, skipConfirm = false): Promise<void> {
   if (!packageName) {
     console.error('Error: Package name required');
     console.error('Usage: mcp disable <package>');
@@ -22,6 +23,18 @@ export async function disableCommand(packageName: string): Promise<void> {
   if (!server.enabled) {
     console.log(chalk.yellow(`Server '${packageName}' is already disabled`));
     return;
+  }
+
+  // Confirmation prompt
+  if (!skipConfirm) {
+    const confirmed = await confirmAction(
+      `Disable MCP server '${packageName}'?`,
+      'This will stop the server from being used until re-enabled.'
+    );
+    if (!confirmed) {
+      console.log(chalk.gray('Operation cancelled'));
+      return;
+    }
   }
 
   disableMCPServer(packageName);
