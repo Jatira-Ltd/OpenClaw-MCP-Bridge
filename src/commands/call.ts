@@ -5,11 +5,11 @@
 import ora from 'ora';
 import { callTool } from '../lib/executor.js';
 
-export async function callCommand(toolName: string, args: Record<string, unknown>): Promise<void> {
+export async function callCommand(toolName: string, args: Record<string, unknown>, serverName?: string): Promise<void> {
   const spinner = ora(`Calling ${toolName}...`).start();
   
   try {
-    const result = await callTool(toolName, args);
+    const result = await callTool(toolName, args, serverName);
     spinner.succeed(`Result from ${toolName}:`);
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
