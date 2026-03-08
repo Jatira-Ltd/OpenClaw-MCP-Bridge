@@ -4,10 +4,16 @@
   "description": "MCP Bridge for OpenClaw - Connect to Model Context Protocol servers",
   "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "mcp-bridge": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
+    "build:cli": "npx esbuild src/cli.tsx --bundle --platform=node --outfile=dist/cli.js --external:child_process --external:react --external:react-dom --external:ink --external:enquirer --external:chalk --external:ora --external:@modelcontextprotocol/sdk --external:enquirer --format=esm --loader:.tsx=tsx",
+    "build:all": "npm run build && npm run build:cli",
     "start": "node dist/index.js",
-    "dev": "tsc && node dist/index.js"
+    "dev": "npm run build:all && node dist/cli.js",
+    "cli": "node dist/cli.js"
   },
   "keywords": [
     "mcp",
@@ -20,11 +26,18 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
     "chalk": "^4.1.2",
-    "ora": "^7.0.0"
+    "enquirer": "^2.4.1",
+    "ink": "^6.8.0",
+    "ora": "^7.0.0",
+    "prompter": "^0.0.5",
+    "react": "^19.2.4",
+    "react-devtools-core": "^6.0.8"
   },
   "devDependencies": {
     "@modelcontextprotocol/server-filesystem": "^2026.1.14",
     "@types/node": "^20.0.0",
+    "@types/react": "^19.2.14",
+    "esbuild": "^0.27.3",
     "typescript": "^5.3.0"
   }
 }
