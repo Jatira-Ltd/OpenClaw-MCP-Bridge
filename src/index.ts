@@ -16,6 +16,8 @@ import { configEditCommand } from './commands/config-edit.js';
 import { updateCommand } from './commands/update.js';
 import { closeSession } from './lib/protocol.js';
 import { getParsedArgs } from './lib/args.js';
+import { runMigrationCommand } from './lib/config-migrate.js';
+import { runCompletionsCommand } from './lib/completions.js';
 
 const PKG_VERSION = '1.0.0';
 
@@ -36,11 +38,16 @@ Commands:
   discover [server]    Discover tools from MCP servers
   update [package]     Update MCP server(s) to latest version
   config               Manage MCP server configuration
+  completions <shell>  Generate shell completions
 
 Configuration Commands:
   mcp config edit --server <name> --list              List server config
   mcp config edit --server <name> --key <k> --value <v>  Set config
   mcp config edit --server <name> --remove <key>      Remove config
+  mcp config migrate backup                          Backup config
+  mcp config migrate restore <filename>               Restore from backup
+  mcp config migrate list                            List backups
+  mcp config migrate run                             Run migrations
 
 Options:
   -s, --server <name>  Specify MCP server to use (for call command)
@@ -65,6 +72,11 @@ Examples:
   mcp update @notionhq/mcp-server
   mcp config edit --server @notionhq/mcp-server --key apiKey --value "xxx"
   mcp config edit --server @notionhq/mcp-server --list
+  mcp config migrate backup
+  mcp config migrate list
+  mcp config migrate run
+  mcp completions bash >> ~/.bashrc
+  mcp completions zsh >> ~/.zshrc
   mcp call read_file '{ "path": "/tmp/test.txt" }'
   `);
 }
@@ -174,8 +186,12 @@ export async function main() {
       await updateCommand(packageName, skipConfirm);
       break;
     }
+    case 'completions': {
+      await runCompletionsCommand(rest);
+      break;
+    }
     case 'config': {
-      // Handle: mcp config edit [options]
+      // Handle: mcp config <subcommand> [options]
       const subCommand = rest[0];
       
       if (subCommand === 'edit') {
@@ -187,6 +203,9 @@ export async function main() {
           remove: options.remove as string | undefined,
           json: jsonOutput,
         });
+      } else if (subCommand === 'migrate') {
+        // Handle: mcp config migrate <action>
+        await runMigrationCommand(rest.slice(1));
       } else {
         // Default to config edit with no args (shows help)
         await configEditCommand({});
