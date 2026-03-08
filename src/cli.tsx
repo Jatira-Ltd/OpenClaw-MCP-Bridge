@@ -12,13 +12,17 @@ import { readMCPConfig, writeMCPConfig, listMCPServers, addMCPServer, removeMCPS
 import { createSession, listTools, callMCPTool, closeSession } from './lib/protocol.js';
 import type { MCPServer, MCPTool } from './types/mcp.js';
 
-// Extend MCPServer type for runtime use
-interface ServerWithStatus extends MCPServer {
+// Runtime server status interface (not extending MCPServer)
+interface ServerWithStatus {
 	name: string;
 	endpoint?: string;
 	status: 'disconnected' | 'connecting' | 'connected' | 'error';
 	error?: string;
-	tools?: MCPTool[];
+	tools: MCPTool[];
+	installedAt: string;
+	enabled: boolean;
+	config: Record<string, unknown>;
+	env: Record<string, string>;
 }
 
 // Color palette from spec
@@ -56,7 +60,7 @@ function getToolIcon(toolName: string): string {
 
 // Custom confirm prompt
 async function confirm(message: string): Promise<boolean> {
-	const { confirmed } = await enquirer.prompt({
+	const { confirmed } = await (enquirer as any).prompt({
 		type: 'confirm',
 		name: 'confirmed',
 		message,
@@ -67,7 +71,7 @@ async function confirm(message: string): Promise<boolean> {
 
 // Custom input prompt
 async function input(message: string, initial?: string): Promise<string> {
-	const { value } = await enquirer.prompt({
+	const { value } = await (enquirer as any).prompt({
 		type: 'input',
 		name: 'value',
 		message,
@@ -78,7 +82,7 @@ async function input(message: string, initial?: string): Promise<string> {
 
 // Help Panel Component
 function HelpPanel({ onClose }: { onClose: () => void }) {
-	useInput((input) => {
+	useInput((input: string) => {
 		if (input === 'q' || input === '\u001b') { // q or escape
 			onClose();
 		}
@@ -314,7 +318,7 @@ function App() {
 	}, [lastResult]);
 
 	// Keyboard input handler
-	useInput((input, key) => {
+	useInput((input: string, key: any) => {
 		if (showHelp) {
 			if (input === '?' || input === 'q' || key.escape) {
 				setShowHelp(false);
