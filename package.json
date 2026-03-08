@@ -15,7 +15,9 @@
     "dev": "npm run build:all && node dist/cli.js",
     "cli": "node dist/cli.js",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "vitest run test-e2e.ts"
   },
   "keywords": [
     "mcp",
