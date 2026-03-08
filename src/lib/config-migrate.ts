@@ -137,10 +137,27 @@ export async function checkAndMigrate(skipConfirm = false): Promise<void> {
   console.log(chalk.yellow(`⚠️  Config version (${currentVersion}) is outdated`));
   
   if (skipConfirm) {
+    // Skip confirmation - just run migration
     migrateConfig();
   } else {
-    // For now, auto-migrate with backup
-    migrateConfig();
+    // Prompt user for confirmation
+    const readline = await import('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    return new Promise<void>((resolve) => {
+      rl.question(chalk.bold('Run migration now? (y/N) '), (answer) => {
+        rl.close();
+        if (answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes') {
+          migrateConfig();
+        } else {
+          console.log(chalk.gray('Migration skipped'));
+        }
+        resolve();
+      });
+    });
   }
 }
 
