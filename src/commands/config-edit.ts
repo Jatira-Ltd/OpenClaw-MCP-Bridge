@@ -3,7 +3,7 @@
  */
 
 import chalk from 'chalk';
-import { readMCPConfig, writeMCPConfig } from '../lib/config.js';
+import { readMCPConfig, writeMCPConfig, getMCPServer } from '../lib/config.js';
 
 interface ConfigEditOptions {
   server?: string;

@@ -2,7 +2,7 @@
  * Protocol Module Tests
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MCPSession, createSession, closeSession, getCurrentSession } from '../lib/protocol.js';
 import path from 'path';
 import fs from 'fs';

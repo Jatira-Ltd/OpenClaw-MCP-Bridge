@@ -5,13 +5,13 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { render, Box, Text, useInput } from 'ink';
+import { render, Box, Text, useInput, useApp } from 'ink';
 import chalk from 'chalk';
 import enquirer from 'enquirer';
-import { readMCPConfig, addMCPServer, removeMCPServer, } from './lib/config.js';
+import { readMCPConfig, writeMCPConfig, listMCPServers, addMCPServer, removeMCPServer, getMCPServer } from './lib/config.js';
 import { createSession, listTools, callMCPTool, closeSession } from './lib/protocol.js';
 import { isVerbose } from './lib/logger.js';
-
+import { handleError } from './lib/errors.js';
 import type { MCPServer, MCPTool } from './types/mcp.js';
 
 // CLI flags - parse before anything else
@@ -225,12 +225,11 @@ function App() {
 	const [selectedServerIndex, setSelectedServerIndex] = useState(0);
 	const [selectedToolIndex, setSelectedToolIndex] = useState(0);
 	const [showHelp, setShowHelp] = useState(false);
-	// View state simplified
-useState<'servers' | 'tools' | 'execute'>('servers');
+	const [view, setView] = useState<'servers' | 'tools' | 'execute'>('servers');
 	const [lastResult, setLastResult] = useState<string | null>(null);
 	const [executionError, setExecutionError] = useState<string | null>(null);
 	const [isExecuting, setIsExecuting] = useState(false);
-	const [toolArgs] = useState('{}');
+	const [toolArgs, setToolArgs] = useState('{}');
 	const [focusedPanel, setFocusedPanel] = useState<0 | 1 | 2>(0); // 0=servers, 1=tools, 2=execute
 
 	const loadServers = useCallback(() => {
@@ -263,15 +262,15 @@ useState<'servers' | 'tools' | 'execute'>('servers');
 				return;
 			}
 			
-			const endpointInput = await input('Endpoint URL (e.g., http://localhost:3000):');
+			const endpoint = await input('Endpoint URL (e.g., http://localhost:3000):');
 			try {
-				new URL(endpointInput);
+				new URL(endpoint);
 			} catch {
 				console.log(chalk.red('Invalid endpoint URL.'));
 				return;
 			}
 
-			await input('Description (optional):'); // description not needed
+			const description = await input('Description (optional):');
 			
 			// Add server to config
 			addMCPServer(name, {
@@ -297,8 +296,7 @@ useState<'servers' | 'tools' | 'execute'>('servers');
 
 		try {
 			// Use the endpoint from config or package name
-			// endpoint is read from server.config for future use
-			void server.config?.endpoint;
+			const endpoint = server.config?.endpoint as string || server.name;
 			
 			// For now, we use the package name approach from the POC
 			await createSession(server.name, server.config as Record<string, unknown>);
@@ -330,10 +328,7 @@ useState<'servers' | 'tools' | 'execute'>('servers');
 	}, []);
 
 	// Remove server
-	// handleRemove callback removed - not currently used
-// HandleRemove callback placeholder
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const handleRemoveUnused = useCallback(async (index: number) => {
+	const handleRemove = useCallback(async (index: number) => {
 		const server = servers[index];
 		if (!server) return;
 
@@ -413,7 +408,7 @@ const handleRemoveUnused = useCallback(async (index: number) => {
 	// Copy result to clipboard (using pbcopy)
 	const handleCopy = useCallback(() => {
 		if (!lastResult) return;
-		import { execFileSync } from 'child_process';
+		const { execFileSync } = require('child_process');
 		try {
 			execFileSync('pbcopy', { input: lastResult });
 			console.log(chalk.green('✓ Result copied to clipboard'));
@@ -454,7 +449,7 @@ const handleRemoveUnused = useCallback(async (index: number) => {
 				setSelectedServerIndex(prev => Math.max(0, prev - 1));
 			} else if (focusedPanel === 1) {
 				const connectedServer = servers.find(s => s.status === 'connected');
-				void connectedServer?.tools?.length // toolCount not used || 0;
+				const toolCount = connectedServer?.tools?.length || 0;
 				setSelectedToolIndex(prev => Math.max(0, prev - 1));
 			}
 		} else if (key.downArrow) {
@@ -462,7 +457,7 @@ const handleRemoveUnused = useCallback(async (index: number) => {
 				setSelectedServerIndex(prev => Math.min(servers.length - 1, prev + 1));
 			} else if (focusedPanel === 1) {
 				const connectedServer = servers.find(s => s.status === 'connected');
-				void connectedServer?.tools?.length // toolCount not used || 0;
+				const toolCount = connectedServer?.tools?.length || 0;
 				setSelectedToolIndex(prev => Math.min(toolCount - 1, prev + 1));
 			}
 		}
@@ -501,8 +496,7 @@ const handleRemoveUnused = useCallback(async (index: number) => {
 
 	// Get connected server
 	const connectedServer = servers.find(s => s.status === 'connected');
-	// selectedServer computed but not needed in current render
-void servers[selectedServerIndex];
+	const selectedServer = servers[selectedServerIndex];
 	const selectedTool = connectedServer?.tools?.[selectedToolIndex];
 
 	// Render help panel
@@ -539,7 +533,7 @@ void servers[selectedServerIndex];
 									server.status === 'error' ? colors.error : colors.textMuted}>
 									{index === selectedServerIndex && focusedPanel === 0 ? '→ ' : '  '}
 									{server.status === 'connected' ? '●' : 
-										server.status === 'connecting' ? '◐' : '○'}
+									 server.status === 'connecting' ? '◐' : '○'}
 								</Text>
 								<Text color={colors.textPrimary}> {server.name} </Text>
 								<Text color={colors.textSecondary}>

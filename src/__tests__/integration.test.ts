@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { addMCPServer, removeMCPServer, getMCPServer } from '../lib/config.js';
+import { addMCPServer, removeMCPServer, getMCPServer, listMCPServers, getServerNames } from '../lib/config.js';
 import { discoverTools, callTool } from '../lib/executor.js';
 import { installMCPServer, isPackageInstalled, validatePackageName } from '../lib/installer.js';
 import { validateServerConfig, validateToolName } from '../lib/config-validator.js';
@@ -45,7 +45,7 @@ describe('Integration: Command → Lib → Config Flows', () => {
       await installMCPServer(packageName);
       
       // Verify config was updated
-      // Server retrieved (verified in other tests)
+      const server = getMCPServer(packageName);
       // Verified in other tests
       expect(server?.enabled).toBe(true);
       expect(server?.installedAt).toBeDefined();
@@ -97,7 +97,7 @@ describe('Integration: Command → Lib → Config Flows', () => {
       expect(tools.length).toBe(14);
       
       // Verify tools are cached in config
-      // Server checked
+      const server = getMCPServer(TEST_PACKAGE);
       expect(tools.length).toBe(14);
     }, 60000);
 

@@ -12,7 +12,7 @@ import { log, isVerbose } from './logger.js';
 import { handleError } from './errors.js';
 
 const __filename = fileURLToPath(import.meta.url);
-void __filename; // Required for ESM
+const __dirname = path.dirname(__filename);
 
 // Config file location - separate from OpenClaw's config
 const CONFIG_PATH = path.join(os.homedir(), '.openclaw', 'mcp-servers.json');

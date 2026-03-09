@@ -4,8 +4,8 @@
 
 import ora from 'ora';
 import chalk from 'chalk';
-import { listMCPServers } from '../lib/config.js';
-import { getServerHealth } from '../lib/protocol.js';
+import { listMCPServers, readMCPConfig } from '../lib/config.js';
+import { getServerHealth, createSession } from '../lib/protocol.js';
 
 export interface ServerStatus {
   name: string;
