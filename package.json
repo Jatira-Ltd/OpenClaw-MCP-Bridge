@@ -1,7 +1,7 @@
 {
-  "name": "@openclaw/mcp-bridge",
+  "name": "@jagadeesh/mcp-bridge",
   "version": "1.0.0",
-  "description": "MCP Bridge for OpenClaw - Connect to Model Context Protocol servers",
+  "description": "MCP Bridge - Connect to Model Context Protocol servers",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
@@ -24,10 +24,9 @@
   "keywords": [
     "mcp",
     "model-context-protocol",
-    "openclaw",
     "bridge"
   ],
-  "author": "OpenClaw",
+  "author": "Jagadeesh Kumar Chippada",
   "license": "MIT",
   "dependencies": {
     "chalk": "^4.1.2",
