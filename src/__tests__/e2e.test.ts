@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { spawn } from 'child_process';
+
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
 import path from 'path';
@@ -59,7 +59,6 @@ describe('E2E: Full CLI Invocation', () => {
         await execAsync(`node ${CLI_PATH} --help`, { timeout: 30000 });
       } catch (e: any) {
         // Some CLIs exit with non-zero for help
-        const output = e.stdout || e.message;
         // Just verify it ran without crashing
         expect(e).toBeDefined();
       }

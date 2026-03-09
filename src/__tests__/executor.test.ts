@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { callTool, discoverTools } from '../lib/executor.js';
-import { addMCPServer, removeMCPServer, updateServerTools, getMCPServer, listMCPServers } from '../lib/config.js';
+import { addMCPServer, listMCPServers } from '../lib/config.js';
 import path from 'path';
 import fs from 'fs';
 
@@ -120,7 +120,7 @@ describe('Executor Module', () => {
       expect(tools.length).toBe(14);
       
       // Verify tools are cached in config
-      const server = getMCPServer(TEST_PACKAGE);
+      // Tools cached in config (checked in other tests)
       // Note: discoverTools closes session, so caching may not work
       // Just verify we got the tools
       expect(tools.length).toBe(14);

@@ -291,7 +291,7 @@ export class MCPSession {
    */
   async close(timeoutMs = 5000): Promise<void> {
     // Reject all pending requests
-    for (const [id, { reject }] of this.pendingRequests) {
+    for (const [, { reject }] of this.pendingRequests) {
       reject(new Error('Session closed'));
     }
     this.pendingRequests.clear();

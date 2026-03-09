@@ -3,22 +3,18 @@
  * Tests the installer module for package validation, installation, and security
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { 
   validatePackageName, 
   installMCPServer, 
   isPackageInstalled,
   getPackageVersion 
 } from '../lib/installer.js';
-import { addMCPServer, removeMCPServer, getMCPServer } from '../lib/config.js';
+import { removeMCPServer, getMCPServer } from '../lib/config.js';
 import { validateServerConfig } from '../lib/config-validator.js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
 
 describe('Installer Validation Tests', () => {
-  const testServerName = 'test-installer-' + Date.now();
 
   describe('Package Name Validation', () => {
     it('should accept valid package names', () => {
