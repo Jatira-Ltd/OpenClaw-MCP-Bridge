@@ -103,7 +103,7 @@ export function migrateConfig(): { migrated: boolean; fromVersion: string; toVer
   if (currentVersion === '1.0') {
     // Add lastUsedAt field to servers if not present
     if (config.servers) {
-      for (const [name, server] of Object.entries(config.servers)) {
+      for (const [, server] of Object.entries(config.servers)) {
         if (!server.lastUsedAt) {
           server.lastUsedAt = server.installedAt;
           migrations++;
