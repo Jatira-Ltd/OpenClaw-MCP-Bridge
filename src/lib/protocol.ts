@@ -37,6 +37,42 @@ export const KNOWN_SERVERS = new Set([
   '@modelcontextprotocol/server-puppeteer',
   '@notionhq/mcp-server',
   '@github/mcp-server',
+  '@modelcontextprotocol/server-github',
+  '@notionhq/notion-mcp-server',
+  '@kazuph/mcp-fetch',
+  'hyper-mcp-browser',
+  'slack-mcp-server',
+  'mcp-fal-ai-image',
+  'mcp-postgres',
+  'ollama-mcp-server',
+  'mcp-server-kubernetes',
+  '@aashari/mcp-server-atlassian-jira',
+  'linear-mcp',
+  '@winor30/mcp-server-datadog',
+  'chrome-devtools-mcp',
+  '@sentry/mcp-server',
+  '@mapbox/mcp-server',
+  '@upstash/context7-mcp',
+  'puppeteer-mcp-server',
+  '@modelcontextprotocol/server-memory',
+  '@modelcontextprotocol/server-sequential-thinking',
+  'figma-mcp',
+  'ref-tools-mcp',
+  '@apify/actors-mcp-server',
+  '@ui5/mcp-server',
+  'mcp-server-code-runner',
+  '@fast-kit/spec-kit',
+  '@azure/mcp',
+  '@azure-devops/mcp',
+  '@railway/mcp-server',
+  '@supabase/mcp-server-supabase',
+  '@hubspot/mcp-server',
+  '@heroku/mcp-server',
+  '@dynatrace-oss/dynatrace-mcp-server',
+  '@roychri/mcp-server-asana',
+  '@stripe/mcp',
+  '@zereight/mcp-gitlab',
+  '@structured-world/gitlab-mcp',
 ]);
 
 /**
@@ -82,6 +118,7 @@ function validateAllowedDirectories(directories: unknown): string[] {
  * Get the command to run for a package with arguments
  */
 function getServerCommand(packageName: string, config?: Record<string, unknown>): { command: string; args: string[]; cwd?: string } {
+  // Check if there's a custom config for this server
   if (SERVER_CONFIGS[packageName]) {
     const server = SERVER_CONFIGS[packageName];
     return {
@@ -91,7 +128,15 @@ function getServerCommand(packageName: string, config?: Record<string, unknown>)
     };
   }
 
-  // SECURITY FIX: Do NOT fall back to npx for unknown packages
+  // Check if this is a known server - use npx to run it
+  if (KNOWN_SERVERS.has(packageName)) {
+    return {
+      command: 'npx',
+      args: ['-y', packageName],
+    };
+  }
+
+  // Unknown server - throw error
   throw new Error(`Unknown MCP server: ${packageName}. Only known servers are supported.`);
 }
 
