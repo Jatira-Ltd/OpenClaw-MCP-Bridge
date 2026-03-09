@@ -7,6 +7,10 @@
   "bin": {
     "mcp-bridge": "./dist/cli.js"
   },
+  "exports": {
+    ".": "./dist/index.js",
+    "./cli": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "build:cli": "npx esbuild src/cli.tsx --bundle --platform=node --outfile=dist/cli.js --external:child_process --external:react --external:react-dom --external:ink --external:enquirer --external:chalk --external:ora --external:@modelcontextprotocol/sdk --external:enquirer --external:pino --external:pino-pretty --format=esm --loader:.tsx=tsx",
@@ -17,7 +21,6 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "vitest run test-e2e.ts",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix"
   },

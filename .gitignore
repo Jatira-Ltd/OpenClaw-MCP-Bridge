@@ -5,6 +5,9 @@ node_modules/
 dist/
 build/
 
+# Coverage
+coverage/
+
 # Environment
 .env
 .env.local
@@ -20,3 +23,11 @@ build/
 # OpenClaw internals
 .openclaw/
 .clawhub/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test
+test-results/
+.nyc_output/
