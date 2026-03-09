@@ -2,10 +2,7 @@
  * CLI TUI Component Tests
  */
 
-import React from 'react';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render } from 'ink-testing-library';
-import chalk from 'chalk';
+import { describe, it, expect } from 'vitest';
 
 // Mock ink components since we're testing the CLI logic
 // The CLI uses ink which requires special handling for tests

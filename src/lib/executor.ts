@@ -49,7 +49,7 @@ export async function callTool(
   packageName?: string
 ): Promise<unknown> {
   // Find an available MCP server
-  let serverPackage = findBestServer(packageName);
+  const serverPackage = findBestServer(packageName);
   
   if (!serverPackage) {
     throw new Error('No MCP servers installed. Run "mcp install <package>" first.');

@@ -5,10 +5,10 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { render, Box, Text, useInput, useApp } from 'ink';
+import { render, Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
 import enquirer from 'enquirer';
-import { readMCPConfig, writeMCPConfig, listMCPServers, addMCPServer, removeMCPServer, getMCPServer } from './lib/config.js';
+import { readMCPConfig, addMCPServer, removeMCPServer } from './lib/config.js';
 import { createSession, listTools, callMCPTool, closeSession } from './lib/protocol.js';
 import { isVerbose } from './lib/logger.js';
 import { handleError } from './lib/errors.js';
@@ -222,14 +222,14 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
 // Main App Component
 function App() {
 	const [servers, setServers] = useState<ServerWithStatus[]>([]);
-	const [selectedServerIndex, setSelectedServerIndex] = useState(0);
+	const [_selectedServerIndex, setSelectedServerIndex] = useState(0);
 	const [selectedToolIndex, setSelectedToolIndex] = useState(0);
 	const [showHelp, setShowHelp] = useState(false);
-	const [view, setView] = useState<'servers' | 'tools' | 'execute'>('servers');
+	const [_view, _setView] = useState<'servers' | 'tools' | 'execute'>('servers');
 	const [lastResult, setLastResult] = useState<string | null>(null);
 	const [executionError, setExecutionError] = useState<string | null>(null);
 	const [isExecuting, setIsExecuting] = useState(false);
-	const [toolArgs, setToolArgs] = useState('{}');
+	const [toolArgs, _setToolArgs] = useState('{}');
 	const [focusedPanel, setFocusedPanel] = useState<0 | 1 | 2>(0); // 0=servers, 1=tools, 2=execute
 
 	const loadServers = useCallback(() => {
@@ -270,7 +270,7 @@ function App() {
 				return;
 			}
 
-			const description = await input('Description (optional):');
+			const _description = await input('Description (optional):');
 			
 			// Add server to config
 			addMCPServer(name, {
@@ -296,7 +296,7 @@ function App() {
 
 		try {
 			// Use the endpoint from config or package name
-			const endpoint = server.config?.endpoint as string || server.name;
+			const _endpoint = server.config?.endpoint as string || server.name;
 			
 			// For now, we use the package name approach from the POC
 			await createSession(server.name, server.config as Record<string, unknown>);
@@ -328,7 +328,7 @@ function App() {
 	}, []);
 
 	// Remove server
-	const handleRemove = useCallback(async (index: number) => {
+	const _handleRemove = useCallback(async (index: number) => {
 		const server = servers[index];
 		if (!server) return;
 
@@ -352,7 +352,7 @@ function App() {
 		if (!connectedServer) return;
 
 		setServers(prev => prev.map((s, i) => 
-			i === selectedServerIndex ? { ...s, status: 'connecting' } : s
+			i === _selectedServerIndex ? { ...s, status: 'connecting' } : s
 		));
 
 		try {
@@ -361,18 +361,18 @@ function App() {
 			const tools = await listTools();
 			
 			setServers(prev => prev.map((s, i) => 
-				i === selectedServerIndex ? { ...s, status: 'connected', tools } : s
+				i === _selectedServerIndex ? { ...s, status: 'connected', tools } : s
 			));
 		} catch (error) {
 			setServers(prev => prev.map((s, i) => 
-				i === selectedServerIndex ? { 
+				i === _selectedServerIndex ? { 
 					...s, 
 					status: 'error', 
 					error: error instanceof Error ? error.message : 'Refresh failed' 
 				} : s
 			));
 		}
-	}, [servers, selectedServerIndex]);
+	}, [servers, _selectedServerIndex]);
 
 	// Execute tool
 	const handleExecute = useCallback(async () => {
@@ -408,7 +408,7 @@ function App() {
 	// Copy result to clipboard (using pbcopy)
 	const handleCopy = useCallback(() => {
 		if (!lastResult) return;
-		const { execFileSync } = require('child_process');
+		// Using imported execFileSync
 		try {
 			execFileSync('pbcopy', { input: lastResult });
 			console.log(chalk.green('✓ Result copied to clipboard'));
@@ -466,11 +466,11 @@ function App() {
 		if (key.return) {
 			if (focusedPanel === 0) {
 				// Connect/disconnect on enter
-				const server = servers[selectedServerIndex];
+				const server = servers[_selectedServerIndex];
 				if (server.status === 'disconnected' || server.status === 'error') {
-					handleConnect(selectedServerIndex);
+					handleConnect(_selectedServerIndex);
 				} else if (server.status === 'connected') {
-					handleDisconnect(selectedServerIndex);
+					handleDisconnect(_selectedServerIndex);
 				}
 			} else if (focusedPanel === 1) {
 				// Select tool and focus execution
@@ -496,7 +496,7 @@ function App() {
 
 	// Get connected server
 	const connectedServer = servers.find(s => s.status === 'connected');
-	const selectedServer = servers[selectedServerIndex];
+	const _selectedServer = servers[selectedServerIndex];
 	const selectedTool = connectedServer?.tools?.[selectedToolIndex];
 
 	// Render help panel
@@ -531,7 +531,7 @@ function App() {
 								<Text color={server.status === 'connected' ? colors.success : 
 									server.status === 'connecting' ? colors.warning : 
 									server.status === 'error' ? colors.error : colors.textMuted}>
-									{index === selectedServerIndex && focusedPanel === 0 ? '→ ' : '  '}
+									{index === _selectedServerIndex && focusedPanel === 0 ? '→ ' : '  '}
 									{server.status === 'connected' ? '●' : 
 									 server.status === 'connecting' ? '◐' : '○'}
 								</Text>

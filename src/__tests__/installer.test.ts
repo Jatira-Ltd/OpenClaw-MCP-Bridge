@@ -3,22 +3,18 @@
  * Tests the installer module for package validation, installation, and security
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { 
   validatePackageName, 
   installMCPServer, 
   isPackageInstalled,
   getPackageVersion 
 } from '../lib/installer.js';
-import { addMCPServer, removeMCPServer, getMCPServer } from '../lib/config.js';
+import { removeMCPServer, getMCPServer } from '../lib/config.js';
 import { validateServerConfig } from '../lib/config-validator.js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
 
 describe('Installer Validation Tests', () => {
-  const testServerName = 'test-installer-' + Date.now();
+  const _testServerName = 'test-installer-' + Date.now();
 
   describe('Package Name Validation', () => {
     it('should accept valid package names', () => {
@@ -217,24 +213,24 @@ describe('Installer Validation Tests', () => {
     it('should provide clear error for empty name', () => {
       try {
         validatePackageName('');
-      } catch (e: any) {
-        expect(e.message).toContain('required');
+      } catch (e: unknown) {
+        expect(e instanceof Error ? e.message : '').toContain('required');
       }
     });
 
     it('should provide clear error for invalid characters', () => {
       try {
         validatePackageName('server;rm -rf');
-      } catch (e: any) {
-        expect(e.message).toMatch(/invalid|Invalid/);
+      } catch (e: unknown) {
+        expect(e instanceof Error ? e.message : '').toMatch(/invalid|Invalid/);
       }
     });
 
     it('should provide clear error for non-existent package', async () => {
       try {
         await installMCPServer('definitely-not-real-' + Date.now());
-      } catch (e: any) {
-        expect(e.message).toContain('not found');
+      } catch (e: unknown) {
+        expect(e instanceof Error ? e.message : '').toContain('not found');
       }
     });
   });

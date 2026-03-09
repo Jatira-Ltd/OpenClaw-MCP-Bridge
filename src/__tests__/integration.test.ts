@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { addMCPServer, removeMCPServer, getMCPServer, listMCPServers, getServerNames } from '../lib/config.js';
+import { addMCPServer, removeMCPServer, getMCPServer } from '../lib/config.js';
 import { discoverTools, callTool } from '../lib/executor.js';
 import { installMCPServer, isPackageInstalled, validatePackageName } from '../lib/installer.js';
 import { validateServerConfig, validateToolName } from '../lib/config-validator.js';
@@ -68,8 +68,8 @@ describe('Integration: Command → Lib → Config Flows', () => {
 
     it('should detect if package is installed', async () => {
       // Check a known installed package
-      const isInstalled = await isPackageInstalled('typescript');
-      expect(isInstalled).toBe(true);
+      const installed = await isPackageInstalled('typescript');
+      expect(installed).toBe(true);
       
       // Check a non-existent package
       const notInstalled = await isPackageInstalled('non-existent-pkg-' + Date.now());
@@ -96,8 +96,8 @@ describe('Integration: Command → Lib → Config Flows', () => {
       expect(tools).toBeDefined();
       expect(tools.length).toBe(14);
       
-      // Verify tools are cached in config
-      const server = getMCPServer(TEST_PACKAGE);
+      // Note: discoverTools closes session, so caching may not work
+      // Just verify we got the tools
       expect(tools.length).toBe(14);
     }, 60000);
 
@@ -189,10 +189,6 @@ describe('Integration: Command → Lib → Config Flows', () => {
         env: {},
       });
       
-      // Verify added
-      let server = getMCPServer(serverName);
-      // Verified in other tests
-      
       // 2. Discover tools - skip for this test
       // 3. Call tool - skip for this test
       const testFile = path.join(homeDir, 'mcp-bridge-integration-test.txt');
@@ -203,7 +199,7 @@ describe('Integration: Command → Lib → Config Flows', () => {
       removeMCPServer(serverName);
       
       // Verify removed
-      server = getMCPServer(serverName);
+      const server = getMCPServer(serverName);
       expect(server).toBeNull();
     }, 120000);
   });

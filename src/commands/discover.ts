@@ -4,7 +4,7 @@
 
 import ora from 'ora';
 import chalk from 'chalk';
-import { discoverTools, discoverAllTools } from '../lib/discover.js';
+import { discoverTools } from '../lib/discover.js';
 import { listMCPServers } from '../lib/config.js';
 import { ProgressTracker } from '../lib/ui.js';
 

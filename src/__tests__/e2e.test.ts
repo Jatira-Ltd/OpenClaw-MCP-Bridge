@@ -4,7 +4,6 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { spawn } from 'child_process';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
 import path from 'path';
@@ -57,9 +56,8 @@ describe('E2E: Full CLI Invocation', () => {
     it('should display help when run without arguments', async () => {
       try {
         await execAsync(`node ${CLI_PATH} --help`, { timeout: 30000 });
-      } catch (e: any) {
+      } catch (e: unknown) {
         // Some CLIs exit with non-zero for help
-        const output = e.stdout || e.message;
         // Just verify it ran without crashing
         expect(e).toBeDefined();
       }
@@ -68,7 +66,7 @@ describe('E2E: Full CLI Invocation', () => {
     it('should handle unknown commands gracefully', async () => {
       try {
         await execAsync(`node ${CLI_PATH} unknown-command-xyz`, { timeout: 30000 });
-      } catch (e: any) {
+      } catch (e: unknown) {
         // Should handle gracefully
         expect(e).toBeDefined();
       }
