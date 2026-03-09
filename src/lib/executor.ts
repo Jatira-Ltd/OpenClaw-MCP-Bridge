@@ -2,18 +2,9 @@
  * Executor module - Execute MCP tools
  */
 
-import { initializeMCP, listTools, callMCPTool, closeSession } from './protocol.js';
+import { initializeMCP, listTools, callMCPTool, closeSession, KNOWN_SERVERS } from './protocol.js';
 import { getServerNames, getMCPServer, updateServerTools } from './config.js';
 import type { MCPTool } from '../types/mcp.js';
-
-// Known working MCP servers that should be prioritized
-const KNOWN_SERVERS = new Set([
-  '@modelcontextprotocol/server-filesystem',
-  '@modelcontextprotocol/server-brave-search',
-  '@modelcontextprotocol/server-puppeteer',
-  '@notionhq/mcp-server',
-  '@github/mcp-server',
-]);
 
 /**
  * Find the best available MCP server

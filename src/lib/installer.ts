@@ -1,5 +1,5 @@
 /**
- * Installer module - Install MCP server packages via npx
+ * Installer module - Install MCP server packages via npm
  */
 
 import { exec } from 'child_process';
@@ -48,7 +48,7 @@ export async function getPackageVersion(packageName: string): Promise<string | n
 }
 
 /**
- * Install an MCP server package via npx
+ * Install an MCP server package via npm
  */
 export async function installMCPServer(packageName: string, force = false): Promise<void> {
   // Validate package name before use
@@ -58,6 +58,14 @@ export async function installMCPServer(packageName: string, force = false): Prom
   const version = await getPackageVersion(packageName);
   if (!version) {
     throw new Error(`Package '${packageName}' not found in npm registry`);
+  }
+  
+  // Install the package via npm (save to package.json dependencies)
+  try {
+    console.log(`Installing ${packageName} via npm...`);
+    await execAsync(`npm install ${packageName}`, { timeout: 300000 });
+  } catch (error) {
+    throw new Error(`Failed to install ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
   }
   
   // Add/update config (force overwrites existing)

@@ -17,8 +17,8 @@ export interface ServerHealth {
   error?: string;
 }
 
-// Known safe MCP servers - no fallback to npx for unknown packages
-const KNOWN_SERVERS: Record<string, { command: string; args: (config?: Record<string, unknown>) => string[]; cwd?: string }> = {
+// Known MCP servers with their command/args configurations
+const SERVER_CONFIGS: Record<string, { command: string; args: (config?: Record<string, unknown>) => string[]; cwd?: string }> = {
   '@modelcontextprotocol/server-filesystem': {
     command: 'node',
     args: (cfg) => {
@@ -29,6 +29,15 @@ const KNOWN_SERVERS: Record<string, { command: string; args: (config?: Record<st
     cwd: path.join(process.cwd(), 'node_modules', '@modelcontextprotocol', 'server-filesystem'),
   },
 };
+
+// Known working MCP servers that should be prioritized - exported for executor
+export const KNOWN_SERVERS = new Set([
+  '@modelcontextprotocol/server-filesystem',
+  '@modelcontextprotocol/server-brave-search',
+  '@modelcontextprotocol/server-puppeteer',
+  '@notionhq/mcp-server',
+  '@github/mcp-server',
+]);
 
 /**
  * Validate and sanitize allowed directories to prevent path traversal
@@ -73,8 +82,8 @@ function validateAllowedDirectories(directories: unknown): string[] {
  * Get the command to run for a package with arguments
  */
 function getServerCommand(packageName: string, config?: Record<string, unknown>): { command: string; args: string[]; cwd?: string } {
-  if (KNOWN_SERVERS[packageName]) {
-    const server = KNOWN_SERVERS[packageName];
+  if (SERVER_CONFIGS[packageName]) {
+    const server = SERVER_CONFIGS[packageName];
     return {
       command: server.command,
       args: server.args(config),
