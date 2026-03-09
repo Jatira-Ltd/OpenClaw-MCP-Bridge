@@ -23,7 +23,7 @@ Connect to the filesystem MCP server to enable file operations.
 ### Programmatic Usage
 
 ```typescript
-import { MCPBridge } from '@openclaw/mcp-bridge';
+import { MCPBridge } from 'mcp-bridge-openclaw';
 
 const bridge = new MCPBridge({
   configPath: './config.json'
@@ -89,7 +89,7 @@ Connect to multiple MCP servers simultaneously.
 ### Programmatic Usage
 
 ```typescript
-import { MCPBridge } from '@openclaw/mcp-bridge';
+import { MCPBridge } from 'mcp-bridge-openclaw';
 
 const bridge = new MCPBridge({
   configPath: './multi-server-config.json',
@@ -153,7 +153,7 @@ Configure retry logic for unreliable servers.
 ### Programmatic Usage with Error Handling
 
 ```typescript
-import { MCPBridge } from '@openclaw/mcp-bridge';
+import { MCPBridge } from 'mcp-bridge-openclaw';
 
 const bridge = new MCPBridge({
   configPath: './config.json',
@@ -186,7 +186,7 @@ await bridge.disconnect();
 Discover available tools before calling them.
 
 ```typescript
-import { MCPBridge } from '@openclaw/mcp-bridge';
+import { MCPBridge } from 'mcp-bridge-openclaw';
 
 const bridge = new MCPBridge({
   configPath: './config.json'
@@ -228,7 +228,7 @@ mcp-bridge --config config.json --server filesystem,github
 ### Programmatic
 
 ```typescript
-import { MCPBridge } from '@openclaw/mcp-bridge';
+import { MCPBridge } from 'mcp-bridge-openclaw';
 
 const bridge = new MCPBridge({
   configPath: './config.json'
@@ -282,7 +282,7 @@ Load in your application:
 
 ```typescript
 import dotenv from 'dotenv';
-import { MCPBridge } from '@openclaw/mcp-bridge';
+import { MCPBridge } from 'mcp-bridge-openclaw';
 import { readFileSync } from 'fs';
 
 dotenv.config();
@@ -382,7 +382,7 @@ await server.connect(transport);
 Use MCP Bridge with AI agents for tool-augmented conversations.
 
 ```typescript
-import { MCPBridge } from '@openclaw/mcp-bridge';
+import { MCPBridge } from 'mcp-bridge-openclaw';
 
 class ToolEnabledAgent {
   private bridge: MCPBridge;

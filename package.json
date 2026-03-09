@@ -1,5 +1,5 @@
 {
-  "name": "mcp-bridge",
+  "name": "mcp-bridge-openclaw",
   "version": "1.0.0",
   "description": "MCP Bridge - Connect to Model Context Protocol servers",
   "main": "dist/index.js",

@@ -16,13 +16,13 @@ Connect to Model Context Protocol (MCP) servers seamlessly with OpenClaw. MCP Br
 ### From npm (recommended)
 
 ```bash
-npm install -g @openclaw/mcp-bridge
+npm install -g mcp-bridge-openclaw
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/openclaw/mcp-bridge.git
+git clone https://github.com/Jatira-Ltd/OpenClaw-MCP-Bridge.git
 cd mcp-bridge
 npm install
 npm run build:all
@@ -68,7 +68,7 @@ mcp-bridge --config mcp-config.json
 ### 3. Programmatic Usage
 
 ```typescript
-import { MCPBridge } from '@openclaw/mcp-bridge';
+import { MCPBridge } from 'mcp-bridge-openclaw';
 import { z } from 'zod';
 
 const bridge = new MCPBridge({
@@ -291,7 +291,7 @@ The config validator provides detailed error messages:
 
 ### Getting Help
 
-- Report issues: https://github.com/openclaw/mcp-bridge/issues
+- Report issues: https://github.com/Jatira-Ltd/OpenClaw-MCP-Bridge/issues
 - Check logs with `--verbose` for detailed error information
 
 ## Development

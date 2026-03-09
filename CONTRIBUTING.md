@@ -24,7 +24,7 @@ Thank you for your interest in contributing to MCP Bridge! This document provide
 
 2. **Clone your fork**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/mcp-bridge.git
+   git clone https://github.com/YOUR_USERNAME/OpenClaw-MCP-Bridge.git
    cd mcp-bridge
    ```
 
