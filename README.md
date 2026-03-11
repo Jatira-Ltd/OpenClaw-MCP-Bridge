@@ -14,6 +14,7 @@ Connect to Model Context Protocol (MCP) servers seamlessly with OpenClaw. MCP Br
 - 📊 **Type Safety** - Full TypeScript support with validated configs
 - 🧪 **Test Coverage** - Comprehensive test suite with 85%+ coverage
 - 🎯 **CLI & Programmatic** - Use as CLI tool or import as a module
+- 🤖 **AI Agent Ready** - Dynamic tool discovery means AI agents can use ANY MCP server without needing a separate skill for each one
 
 ## Installation
 
@@ -33,22 +34,22 @@ npm run build:all
 npm link
 ```
 
-### Install via ClawHub
+### For AI Agents (ClawHub Skill)
 
-ClawHub is OpenClaw's public skill registry. Install the CLI first, then use it to discover and manage MCP-related skills:
+AI agents can learn to use MCP Bridge via the ClawHub skill — no manual setup required:
 
 ```bash
 # Install ClawHub CLI
 npm i -g clawhub
 
-# Search for MCP-related skills
-clawhub search mcp
-
-# Install a skill (if available)
-clawhub install <skill-slug>
+# Install the mcp-bridge skill
+clawhub install mcp-bridge
 ```
 
-> **Note:** The `mcp-bridge-openclaw` package itself is installed via npm (`npm install -g mcp-bridge-openclaw`). ClawHub skills provide additional configuration templates and workflows for OpenClaw.
+**Why this matters:**
+- The skill teaches AI agents how to connect to MCP servers dynamically
+- AI agents discover available tools at runtime — no need for separate skills per MCP server
+- One skill unlocks access to 100+ MCP servers (GitHub, Notion, Postgres, Filesystem, etc.)
 
 ## Quick Start
 
