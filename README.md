@@ -1,5 +1,9 @@
 # MCP Bridge for OpenClaw
 
+[![npm version](https://img.shields.io/npm/v/mcp-bridge-openclaw.svg)](https://www.npmjs.com/package/mcp-bridge-openclaw)
+[![npm downloads](https://img.shields.io/npm/dm/mcp-bridge-openclaw.svg)](https://www.npmjs.com/package/mcp-bridge-openclaw)
+[![License: MIT](https://img.shields.io/npm/l/mcp-bridge-openclaw.svg)](https://opensource.org/licenses/MIT)
+
 Connect to Model Context Protocol (MCP) servers seamlessly with OpenClaw. MCP Bridge acts as a bridge between OpenClaw and MCP-compatible servers, enabling AI agents to interact with external tools and services.
 
 ## Features
@@ -28,6 +32,23 @@ npm install
 npm run build:all
 npm link
 ```
+
+### Install via ClawHub
+
+ClawHub is OpenClaw's public skill registry. Install the CLI first, then use it to discover and manage MCP-related skills:
+
+```bash
+# Install ClawHub CLI
+npm i -g clawhub
+
+# Search for MCP-related skills
+clawhub search mcp
+
+# Install a skill (if available)
+clawhub install <skill-slug>
+```
+
+> **Note:** The `mcp-bridge-openclaw` package itself is installed via npm (`npm install -g mcp-bridge-openclaw`). ClawHub skills provide additional configuration templates and workflows for OpenClaw.
 
 ## Quick Start
 
@@ -88,6 +109,220 @@ const result = await bridge.callTool('filesystem', 'read_file', {
 console.log(result);
 await bridge.disconnect();
 ```
+
+## Real-World Use Cases
+
+### 1. Filesystem Access
+
+Read/write files on your local machine:
+
+```json
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/yourname/projects"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Use case:** Your AI agent can read project files, write code, and manage local resources securely.
+
+---
+
+### 2. GitHub Integration
+
+Connect to GitHub for repository operations:
+
+```json
+{
+  "servers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_xxxxxxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+**Use case:** Create issues, PRs, search code, and manage repositories directly from your AI assistant.
+
+---
+
+### 3. Memory & Knowledge Base
+
+Persistent memory for your AI agent:
+
+```json
+{
+  "servers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Use case:** Store conversation history, learned facts, and context across sessions.
+
+---
+
+### Running Multiple Servers
+
+Connect to several MCP servers at once:
+
+```json
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+      "env": {}
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "demo-token"
+      }
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {}
+    }
+  }
+}
+```
+
+```bash
+mcp-bridge --config mcp-config.json
+```
+
+---
+
+### Quick Reference
+
+| MCP Server | Package | Common Use |
+|------------|---------|------------|
+| Filesystem | `@modelcontextprotocol/server-filesystem` | Local file ops |
+| GitHub | `@modelcontextprotocol/server-github` | Repo management |
+| Memory | `@modelcontextprotocol/server-memory` | Persistent context |
+| Brave Search | `@modelcontextprotocol/server-brave-search` | Web search |
+| PostgreSQL | `@modelcontextprotocol/server-postgres` | Database queries |
+
+Browse more official MCP servers at: https://github.com/modelcontextprotocol/screenshots
+
+---
+
+## Screenshots
+
+### Initial State (No Servers)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  🪢 MCP Bridge                              v1.0.0  [?]help │
+├─────────────────────────────────────────────────────────────┤
+│  Servers                                         [+ Add]    │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  No servers configured. Press 'a' to add your first server.│
+│                                                             │
+│  Tools                                                     │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  Select a connected server to view available tools        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+│  a Add server   ? Help   q Quit                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Connected Server with Tools
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  🪢 MCP Bridge                              v1.0.0  [?]help │
+├─────────────────────────────────────────────────────────────┤
+│  Servers                                         [+ Add]    │
+│  ─────────────────────────────────────────────────────────  │
+│  ●  filesystem              7 tools      [Disconnect]      │
+│  ○  github                  — tools       [Connect]        │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Tools (filesystem)                              [🔄 Refresh]│
+│  ─────────────────────────────────────────────────────────  │
+│  📄  read_file        Read contents from a file            │
+│  📁  read_directory   List directory contents              │
+│  📝  write_file       Write content to a file              │
+│  🗑️  delete_file      Delete a file                        │
+│  📤  move_file        Move/rename a file                   │
+│  📋  get_file_info    Get file metadata                    │
+│  🔍  search_files     Search for files matching pattern    │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Execute                                              [Clear]│
+│  ─────────────────────────────────────────────────────────  │
+│  Tool: read_file                                        [▶ Run]│
+│  Args: { "path": "" }                                      ││
+│                                                             │
+│  Result:                                                  [▣]│
+│  ─────────────────────────────────────────────────────────  │
+│  (No result yet)                                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+│  ↑↓ Navigate   ↵ Select   a Add   r Refresh   q Quit     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Successful Execution
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Execute                                              [Clear]│
+│  ─────────────────────────────────────────────────────────  │
+│  Tool: read_file                        [✓ Done in 42ms]  │
+│  Args: { "path": "package.json" }               [▼ Edit]   │
+│                                                             │
+│  Result:                              [📋 Copy] [🗑 Clear]  │
+│  ─────────────────────────────────────────────────────────  │
+│  {                                                          │
+│    "name": "mcp-bridge-openclaw",                          │
+│    "version": "1.0.0",                                     │
+│    "description": "MCP Bridge for OpenClaw",               │
+│    "main": "dist/index.js",                                │
+│    "type": "module"                                        │
+│  }                                                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Error State
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Execute                                              [Clear]│
+│  ─────────────────────────────────────────────────────────  │
+│  Tool: read_file                                        [▶ Run]│
+│  Args: { "path": "/nonexistent/file.txt" }                │
+│                                                             │
+│  Result:                                                  [▣]│
+│  ─────────────────────────────────────────────────────────  │
+│  ⚠️  Error: File not found                                 │
+│                                                             │
+│  at filesystem.read_file (server.js:142)                   │
+│  at process._tickCallback (internal/process/next_tick...   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## Configuration
 
