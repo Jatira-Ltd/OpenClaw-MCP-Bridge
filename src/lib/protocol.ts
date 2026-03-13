@@ -1,5 +1,6 @@
 /**
  * Protocol module - Simple MCP session manager
+ * Supports MULTIPLE concurrent server connections
  */
 
 import { spawn, ChildProcess } from 'child_process';
@@ -367,38 +368,83 @@ export class MCPSession {
   }
 }
 
-// Module-level session for convenience
-let currentSession: MCPSession | null = null;
+// ============================================================================
+// MULTIPLE SESSION SUPPORT - Map instead of single session
+// ============================================================================
+
+// Map of server name -> MCPSession (supports MULTIPLE concurrent connections)
+const sessions: Map<string, MCPSession> = new Map();
 
 /**
- * Create and initialize a new MCP session
+ * Create and initialize a new MCP session for a specific server
+ * Does NOT close existing sessions - allows MULTIPLE concurrent connections
  */
 export async function createSession(packageName: string, config?: Record<string, unknown>): Promise<MCPSession> {
-  // Close existing session if any
-  if (currentSession) {
-    await currentSession.close();
-  }
-
-  currentSession = new MCPSession(packageName, config);
-  await currentSession.initialize();
-  return currentSession;
+  // Do NOT close existing sessions - each server gets its own session
+  // This enables multiple MCP servers to be connected simultaneously
+  
+  const session = new MCPSession(packageName, config);
+  await session.initialize();
+  
+  // Store by server name, NOT package name - allows user-defined server names
+  sessions.set(packageName, session);
+  
+  return session;
 }
 
 /**
- * Get current session
+ * Get session for a specific server
+ */
+export function getSession(serverName: string): MCPSession | undefined {
+  return sessions.get(serverName);
+}
+
+/**
+ * Get session for the currently selected server (for backward compatibility)
  */
 export function getCurrentSession(): MCPSession | null {
-  return currentSession;
+  // Return the most recently created session if no specific one requested
+  if (sessions.size === 0) return null;
+  const lastKey = Array.from(sessions.keys()).pop();
+  return lastKey ? sessions.get(lastKey) ?? null : null;
 }
 
 /**
- * Close current session
+ * Close session for a specific server (BUG FIX #2)
  */
-export async function closeSession(): Promise<void> {
-  if (currentSession) {
-    await currentSession.close();
-    currentSession = null;
+export async function closeSession(serverName?: string): Promise<void> {
+  if (serverName) {
+    // Close specific server's session
+    const session = sessions.get(serverName);
+    if (session) {
+      await session.close();
+      sessions.delete(serverName);
+    }
+  } else {
+    // Close all sessions (for cleanup)
+    for (const [name, session] of sessions) {
+      await session.close();
+    }
+    sessions.clear();
   }
+}
+
+/**
+ * Close only the session for a specific server (without affecting others)
+ */
+export async function closeServerSession(serverName: string): Promise<void> {
+  const session = sessions.get(serverName);
+  if (session) {
+    await session.close();
+    sessions.delete(serverName);
+  }
+}
+
+/**
+ * Get all active session names
+ */
+export function getActiveSessions(): string[] {
+  return Array.from(sessions.keys());
 }
 
 /**
@@ -444,7 +490,10 @@ export async function getServerHealth(packageName: string, config?: Record<strin
   }
 }
 
-// Backward compatibility exports
+// ============================================================================
+// Backward compatibility exports (for CLI - now uses session per server)
+// ============================================================================
+
 export function spawnMCPServer(packageName: string): ChildProcess {
   const session = new MCPSession(packageName);
   return session as unknown as ChildProcess;
@@ -459,24 +508,42 @@ export async function initializeMCP(packageName: string, config?: Record<string,
   return session.initialize();
 }
 
-export async function listTools(): Promise<MCPTool[]> {
-  if (!currentSession) {
-    throw new Error('No active MCP session');
+/**
+ * List tools from a specific server's session
+ * @param serverName - The server name to list tools from (required for multi-server support)
+ */
+export async function listTools(serverName?: string): Promise<MCPTool[]> {
+  const session = serverName ? getSession(serverName) : getCurrentSession();
+  if (!session) {
+    throw new Error(serverName 
+      ? `No active session for server: ${serverName}` 
+      : 'No active MCP session');
   }
-  return currentSession.listTools();
+  return session.listTools();
 }
 
-export async function callMCPTool(toolName: string, args: Record<string, unknown>): Promise<unknown> {
-  if (!currentSession) {
-    throw new Error('No active MCP session');
+/**
+ * Call a tool on a specific server's session
+ * @param toolName - The tool name to call
+ * @param args - Arguments to pass to the tool
+ * @param serverName - The server name to call the tool on (required for multi-server support)
+ */
+export async function callMCPTool(toolName: string, args: Record<string, unknown>, serverName?: string): Promise<unknown> {
+  const session = serverName ? getSession(serverName) : getCurrentSession();
+  if (!session) {
+    throw new Error(serverName 
+      ? `No active session for server: ${serverName}` 
+      : 'No active MCP session');
   }
-  return currentSession.callTool(toolName, args);
+  return session.callTool(toolName, args);
 }
 
 export function getCurrentProcess(): ChildProcess | null {
-  return currentSession ? (currentSession as unknown as ChildProcess) : null;
+  const session = getCurrentSession();
+  return session ? (session as unknown as ChildProcess) : null;
 }
 
 export function isInitialized(): boolean {
-  return currentSession?.initialized ?? false;
+  const session = getCurrentSession();
+  return session?.initialized ?? false;
 }
